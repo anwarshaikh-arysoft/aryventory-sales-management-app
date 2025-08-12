@@ -11,40 +11,59 @@ import {
   TouchableWithoutFeedback,
   TouchableOpacity,
   Keyboard,
+  ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '../../../context/ThemeContext';
-const Login = require('../../../assets/login.png');
-import ActionButton from '../../components/ActionButton';
+import { useAuth } from '../../context/AuthContext'; // ✅ Import Auth
 import Icon from 'react-native-vector-icons/Feather';
+import ActionButton from '../../components/ActionButton';
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('anwar.shaikh@ary-soft.com'); // default for testing
+  const [password, setPassword] = useState('arysoft123');
   const [isActive, setIsActive] = useState(false);
   const [secureText, setSecureText] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const { colors, typography } = useTheme();
+  const { login } = useAuth(); // ✅ Get login function
 
   useEffect(() => {
     setIsActive(email.trim().length > 0 && password.trim().length > 0);
   }, [email, password]);
 
+  const handleLogin = async () => {
+    setErrorMsg('');
+    setLoading(true);
+    const result = await login(email, password);
+    setLoading(false);
+
+    if (result.success) {
+      navigation.replace('Home'); // ✅ Go to Home if success
+    } else {
+      setErrorMsg(result.error || 'Login failed');
+    }
+  };
+
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#fff', flexDirection: 'column', justifyContent: 'center'}}
-      behavior='padding'
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}>
+      style={{ flex: 1, backgroundColor: '#fff', flexDirection: 'column', justifyContent: 'center' }}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+    >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
           contentContainerStyle={{
             flexGrow: 1,
             padding: 24,
-            justifyContent: 'center'
-          }}          
-          keyboardShouldPersistTaps="handled">
-          <View style={{alignItems: 'center' }}>
+            justifyContent: 'center',
+          }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={{ alignItems: 'center' }}>
             <Image
-              source={require('../../../assets/logo.png')} // Replace with your logo path
+              source={require('../../../assets/logo.png')}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -53,6 +72,8 @@ export default function LoginScreen({ navigation }) {
           <View style={{ marginBottom: 32 }}>
             <Text style={styles.title}>Sign In To Earn</Text>
           </View>
+
+          {errorMsg ? <Text style={{ color: 'red', textAlign: 'center', marginBottom: 12 }}>{errorMsg}</Text> : null}
 
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Email Address</Text>
@@ -81,20 +102,20 @@ export default function LoginScreen({ navigation }) {
                 secureTextEntry={secureText}
               />
               <TouchableOpacity onPress={() => setSecureText(!secureText)}>
-                <Icon
-                  name={secureText ? 'eye-off' : 'eye'}
-                  size={18}
-                  color="#777"
-                />
+                <Icon name={secureText ? 'eye-off' : 'eye'} size={18} color="#777" />
               </TouchableOpacity>
             </View>
           </View>
 
           <ActionButton
-            active={isActive}
-            action={() => navigation.navigate('Home')}
-            text="Login"
+            active={isActive && !loading}
+            action={handleLogin}
+            text={loading ? 'Logging in...' : 'Login'}
           />
+
+          {loading && (
+            <ActivityIndicator size="small" color="#FF7A00" style={{ marginTop: 10 }} />
+          )}
 
           <Text style={styles.footerText} onPress={() => navigation.navigate('Register')}>
             Don’t have an account? <Text style={styles.link}>Sign Up.</Text>
@@ -103,8 +124,6 @@ export default function LoginScreen({ navigation }) {
           <TouchableOpacity onPress={() => navigation.navigate('ForgotPasswordScreen')}>
             <Text style={styles.forgotLink}>Forgot Password</Text>
           </TouchableOpacity>
-
-          
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -112,14 +131,6 @@ export default function LoginScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  input: {
-    borderWidth: 1,
-    padding: 10,
-    marginBottom: 10,
-    borderRadius: 15,
-    borderColor: '#CBCBCB',
-    color: '#000',
-  },
   title: {
     fontSize: 22,
     fontWeight: '700',
@@ -149,23 +160,6 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 48,
-  },
-  signInButton: {
-    flexDirection: 'row',
-    backgroundColor: '#000',
-    paddingVertical: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 12,
-    marginTop: 10,
-  },
-  signInText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  signInIcon: {
-    marginLeft: 10,
   },
   footerText: {
     textAlign: 'center',
