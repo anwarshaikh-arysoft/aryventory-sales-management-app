@@ -1,4 +1,5 @@
 import React from 'react';
+import { StatusBar, Platform } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 
@@ -35,8 +36,25 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={{ flex: 1 }}>
-        <PaperProvider theme={theme}>
+      
+      {/* Transparent StatusBar */}
+      <StatusBar/>
+
+      <SafeAreaView
+        style={{
+          flex: 1,
+          backgroundColor: 'transparent', // Safe area is transparent
+        }}
+      >
+        <PaperProvider
+          theme={{
+            ...theme,
+            colors: {
+              ...theme.colors,
+              background: 'transparent', // Paper root background
+            },
+          }}
+        >
           <AuthProvider>
             <AppNavigator />
           </AuthProvider>

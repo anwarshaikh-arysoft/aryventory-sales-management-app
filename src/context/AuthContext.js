@@ -1,6 +1,7 @@
 // src/context/AuthContext.js
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 const AuthContext = createContext({});
 
@@ -12,29 +13,12 @@ export const useAuth = () => {
   return context;
 };
 
-// Mock users for demo
-const mockUsers = {
-  'manager@aryventory.com': {
-    id: 1,
-    name: 'Rajesh Kumar',
-    email: 'manager@aryventory.com',
-    role: 'manager',
-    employee_id: 'MGR001',
-    phone: '+91 98765 43210'
-  },
-  'telesales@aryventory.com': {
-    id: 2,
-    name: 'Priya Sharma',
-    email: 'telesales@aryventory.com',
-    role: 'telesales',
-    employee_id: 'TS001',
-    phone: '+91 87654 32109'
-  }
-};
-
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const BASE_URL = 'http://192.168.1.48:8001/api'; // Change to your Laravel API base URL
 
   useEffect(() => {
     checkAuthState();
@@ -42,9 +26,11 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthState = async () => {
     try {
-      const userData = await AsyncStorage.getItem('user');
-      if (userData) {
-        setUser(JSON.parse(userData));
+      const storedUser = await AsyncStorage.getItem('user');
+      const storedToken = await AsyncStorage.getItem('token');
+      if (storedUser && storedToken) {
+        setUser(JSON.parse(storedUser));
+        setToken(storedToken);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -55,22 +41,27 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     try {
-      // Mock authentication
-      if (mockUsers[email] && password === 'password') {
-        const userData = mockUsers[email];
-        await AsyncStorage.setItem('user', JSON.stringify(userData));
-        setUser(userData);
+      const response = await axios.post(`${BASE_URL}/login`, { email, password });
+      if (response.data && response.data.token) {
+        const { token, user } = response.data;
+        await AsyncStorage.setItem('token', token);
+        await AsyncStorage.setItem('user', JSON.stringify(user));
+        setToken(token);
+        setUser(user);
         return { success: true };
       }
       return { success: false, error: 'Invalid credentials' };
     } catch (error) {
-      return { success: false, error: 'Login failed' };
+      console.error('Login error:', error.response?.data || error.message);
+      return { success: false, error: error.response?.data?.message || 'Login failed' };
     }
   };
 
   const logout = async () => {
     try {
+      await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
+      setToken(null);
       setUser(null);
     } catch (error) {
       console.error('Logout error:', error);
@@ -79,14 +70,11 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    token,
     login,
     logout,
-    loading
+    loading,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
