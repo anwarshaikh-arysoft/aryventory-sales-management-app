@@ -38,7 +38,7 @@ export default function App() {
     <SafeAreaProvider>
       
       {/* Transparent StatusBar */}
-      <StatusBar/>
+      <StatusBar />
 
       <SafeAreaView
         style={{

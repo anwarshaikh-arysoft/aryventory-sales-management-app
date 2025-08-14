@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "field-agent-tracker",
+    "name": "Arysoft Sales",
     "slug": "snack-adf3a45a-30e3-44f0-acc5-9f65f9f82009",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,10 +20,16 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.anwar.squarebiz.snackadf3a45a30e344f0acc59f65f9f82009"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e0043c67-2f98-4b09-a30a-300b3ba0406c"
+      }
     }
   }
 }
