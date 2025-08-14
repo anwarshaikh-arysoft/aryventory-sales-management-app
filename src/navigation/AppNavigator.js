@@ -16,6 +16,15 @@ import VisitsScreen from '../Screens/Visits/VisitsScreen';
 import OrdersScreen from '../Screens/Orders/OrdersScreen';
 import { ActivityIndicator, View } from 'react-native';
 
+import ActivityTimeline from '../ActivityTimeline';
+import AddNewLead from '../AddNewLead';
+import MeetingTimer from '../MeetingTimer';
+import MyLeads from '../MyLeads';
+import Notifications from '../Notifications';
+import Profile from '../Profile';
+import Reports from '../Reports';
+
+
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
@@ -38,6 +47,13 @@ export default function AppNavigator() {
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="Visits" component={VisitsScreen} />
               <Stack.Screen name="Orders" component={OrdersScreen} />
+              <Stack.Screen name="ActivityTimeline" component={ActivityTimeline} />
+              <Stack.Screen name="AddNewLead" component={AddNewLead} />
+              <Stack.Screen name="MeetingTimer" component={MeetingTimer} />
+              <Stack.Screen name="MyLeads" component={MyLeads} />
+              <Stack.Screen name="Notifications" component={Notifications} />
+              <Stack.Screen name="Profile" component={Profile} />
+              <Stack.Screen name="Reports" component={Reports} />
             </>
           ) : (
             <>

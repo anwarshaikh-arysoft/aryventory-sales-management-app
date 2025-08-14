@@ -10,14 +10,14 @@ import {
   FlatList,
   Button
 } from 'react-native';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
 
   // Auth Context
   const { user, logout } = useAuth();
@@ -65,10 +65,21 @@ export default function HomeScreen() {
     fetchStats();
   }, []);
 
+    // ✅ Bottom Navigation buttons data
+  const bottomButtons = [
+    { label: 'ActivityTimeline', icon: 'clock', screen: 'ActivityTimeline' },
+    { label: 'AddNewLead', icon: 'plus-circle', screen: 'AddNewLead' },
+    { label: 'MeetingTimer', icon: 'watch', screen: 'MeetingTimer' },
+    { label: 'MyLeads', icon: 'users', screen: 'MyLeads' },
+    { label: 'Notifications', icon: 'bell', screen: 'Notifications' },
+    { label: 'Profile', icon: 'user', screen: 'Profile' },
+    { label: 'Reports', icon: 'file-text', screen: 'Reports' },
+  ];
+
   return (
-    <ScrollView>
-      {/* Header */}
-      <View>
+    <View style={{ flex: 1, backgroundColor: '#fff' }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
+        {/* Header */}
         <View style={styles.header}>
           <Image
             source={{ uri: 'https://avatar.iran.liara.run/public/4' }}
@@ -81,7 +92,7 @@ export default function HomeScreen() {
               <Text style={styles.roleText}>{user?.designation}</Text>
             </View>
           </View>
-          <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
             <TouchableOpacity style={styles.notification}>
               <Ionicons name="notifications" size={22} color="#fff" />
               <View style={styles.badge} />
@@ -91,97 +102,112 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
-      </View>
 
-      <View style={styles.container}>
+        <View style={styles.container}>
+          {/* Actions */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.addLeadButton}>
+              <Ionicons name="add" size={20} color="#16a34a" />
+              <Text style={styles.addLeadText}>Shift Start</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.startMeetingButton}>
+              <Ionicons name="time" size={20} color="#2563eb" />
+              <Text style={styles.startMeetingText}>Start Break</Text>
+            </TouchableOpacity>
+          </View>
 
-        {/* Actions */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.addLeadButton}>
-            <Ionicons name="add" size={20} color="#16a34a" />
-            <Text style={styles.addLeadText}>Shift Start</Text>
-          </TouchableOpacity>
+          {/* Stats */}
+          <View style={styles.statsGrid}>
+            {stats &&
+              Object.entries(stats).map(([title, stat], index) => (
+                <View key={index} style={styles.statCard}>
+                  <Text style={styles.statLabel}>{title}</Text>
+                  <View style={styles.statValueContainer}>
+                    <Text style={styles.statValue}>{stat}</Text>
+                    <MaterialIcons
+                      name="calendar-today"
+                      size={18}
+                      color="#f97316"
+                    />
+                  </View>
+                </View>
+              ))}
+          </View>
 
-          <TouchableOpacity style={styles.startMeetingButton}>
-            <Ionicons name="time" size={20} color="#2563eb" />
-            <Text style={styles.startMeetingText}>Start Break</Text>
-          </TouchableOpacity>
-        </View>
+          {/* Schedule */}
+          <Text style={styles.sectionTitle}>Today’s Schedule</Text>
+          {schedule.map((item, index) => (
+            <View style={styles.scheduleItem} key={index}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.scheduleName}>{item.name}</Text>
+                <Text style={styles.scheduleLocation}>At Mobile Zone</Text>
+              </View>
+              <Text style={styles.scheduleTime}>{item.time}</Text>
+              <View
+                style={[
+                  styles.statusTag,
+                  item.status === 'Ongoing'
+                    ? styles.statusOngoing
+                    : styles.statusStart,
+                ]}
+              >
+                <Text style={styles.statusText}>{item.status}</Text>
+              </View>
+            </View>
+          ))}
 
-        {/* Stats */}
-        <View style={styles.statsGrid}>
-          {stats && Object.entries(stats).map(([title, stat], index) => (
-            <View key={index} style={styles.statCard}>
-              <Text style={styles.statLabel}>{title}</Text>
-              <View style={styles.statValueContainer}>
-                <Text style={styles.statValue}>{stat}</Text>
-                <MaterialIcons name="calendar-today" size={18} color="#f97316" />
+          {/* Actions */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity style={styles.addLeadButton}>
+              <Ionicons name="add" size={20} color="#16a34a" />
+              <Text style={styles.addLeadText}>Add Lead</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.startMeetingButton}>
+              <Ionicons name="time" size={20} color="#2563eb" />
+              <Text style={styles.startMeetingText}>Start Meeting</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Recent Activity */}
+          <View style={styles.recentActivityHeader}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <TouchableOpacity>
+              <Text style={styles.viewAllText}>View All</Text>
+            </TouchableOpacity>
+          </View>
+          {activities.map((activity, index) => (
+            <View key={index} style={styles.activityItem}>
+              <Image
+                source={{ uri: 'https://i.ibb.co/Fq2yzvJ/thumb.jpg' }}
+                style={styles.thumb}
+              />
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={styles.activityTitle}>
+                  {activity.title}
+                </Text>
+                <Text numberOfLines={1} style={styles.activityDesc}>
+                  {activity.description}
+                </Text>
               </View>
             </View>
           ))}
         </View>
+      </ScrollView>
 
-        {/* Schedule */}
-        <Text style={styles.sectionTitle}>Today’s Schedule</Text>
-        {schedule.map((item, index) => (
-          <View style={styles.scheduleItem} key={index}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.scheduleName}>{item.name}</Text>
-              <Text style={styles.scheduleLocation}>At Mobile Zone</Text>
-            </View>
-            <Text style={styles.scheduleTime}>{item.time}</Text>
-            <View
-              style={[
-                styles.statusTag,
-                item.status === 'Ongoing'
-                  ? styles.statusOngoing
-                  : styles.statusStart,
-              ]}
-            >
-              <Text style={styles.statusText}>{item.status}</Text>
-            </View>
-          </View>
-        ))}
-
-        {/* Actions */}
-        <View style={styles.buttonRow}>
-          <TouchableOpacity style={styles.addLeadButton}>
-            <Ionicons name="add" size={20} color="#16a34a" />
-            <Text style={styles.addLeadText}>Add Lead</Text>
+      {/* ✅ Fixed Bottom Navigation */}
+      <View style={styles.bottomNav}>
+        {bottomButtons.map((btn, index) => (
+          <TouchableOpacity
+            key={index}
+            style={styles.navItem}
+            onPress={() => navigation.navigate(btn.screen)}
+          >
+            <Feather name={btn.icon} size={20} color="#FF7A00" />
+            <Text style={styles.navText}>{btn.label}</Text>
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.startMeetingButton}>
-            <Ionicons name="time" size={20} color="#2563eb" />
-            <Text style={styles.startMeetingText}>Start Meeting</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Recent Activity */}
-        <View style={styles.recentActivityHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          <TouchableOpacity>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
-        </View>
-
-        {activities.map((activity, index) => (
-          <View key={index} style={styles.activityItem}>
-            <Image
-              source={{ uri: 'https://i.ibb.co/Fq2yzvJ/thumb.jpg' }}
-              style={styles.thumb}
-            />
-            <View style={{ flex: 1 }}>
-              <Text numberOfLines={1} style={styles.activityTitle}>
-                {activity.title}
-              </Text>
-              <Text numberOfLines={1} style={styles.activityDesc}>
-                {activity.description}
-              </Text>
-            </View>
-          </View>
         ))}
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
@@ -329,4 +355,18 @@ const styles = StyleSheet.create({
   },
   activityTitle: { fontWeight: 'bold' },
   activityDesc: { fontSize: 12, color: '#666' },
+    bottomNav: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    backgroundColor: '#fff',
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderColor: '#ddd',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  navItem: { alignItems: 'center' },
+  navText: { fontSize: 10, marginTop: 4, color: '#FF7A00' },
 });
