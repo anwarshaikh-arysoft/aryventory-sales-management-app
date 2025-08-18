@@ -39,20 +39,22 @@ const ActivityTimelineScreen = ({ navigation }) => {
   const ActivityItem = ({ activity }) => {
     const IconComponent = activity.icon;
     return (
-      <View style={styles.activityContainer}>
-        {/* Icon */}
-        <View style={[styles.iconWrapper, { backgroundColor: activity.iconBg }]}>
-          <IconComponent size={20} color={activity.iconColor} />
-        </View>
+      <View style={styles.card}>
+        <View style={styles.activityContainer}>
+          {/* Icon */}
+          <View style={[styles.iconWrapper, { backgroundColor: activity.iconBg }]}>
+            <IconComponent size={20} color={activity.iconColor} />
+          </View>
 
-        {/* Content */}
-        <View style={styles.activityContent}>
-          <View style={styles.activityHeader}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.activityTitle}>{activity.title}</Text>
-              <Text style={styles.activityDescription}>{activity.description}</Text>
+          {/* Content */}
+          <View style={styles.activityContent}>
+            <View style={styles.activityHeader}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.activityTitle}>{activity.title}</Text>
+                <Text style={styles.activityDescription}>{activity.description}</Text>
+              </View>
+              <Text style={styles.activityTime}>{activity.time}</Text>
             </View>
-            <Text style={styles.activityTime}>{activity.time}</Text>
           </View>
         </View>
       </View>
@@ -106,13 +108,23 @@ const styles = StyleSheet.create({
     color: '#111827'
   },
   scrollContainer: {
-    paddingHorizontal: 20,
-    paddingVertical: 16
+    paddingHorizontal: 10,
+    paddingVertical: 16,
   },
   activityContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24
+    alignItems: 'center',
+    // marginBottom: 24
+  },
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
   iconWrapper: {
     width: 48,
@@ -120,7 +132,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12
+    marginRight: 12,
   },
   activityContent: {
     flex: 1
@@ -133,11 +145,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#111827',
-    marginBottom: 4
+    marginBottom: 4,
+    fontFamily: 'Roboto',
   },
   activityDescription: {
     fontSize: 14,
-    color: '#4B5563'
+    color: '#4B5563',
+    fontFamily: 'Roboto'
   },
   activityTime: {
     fontSize: 12,

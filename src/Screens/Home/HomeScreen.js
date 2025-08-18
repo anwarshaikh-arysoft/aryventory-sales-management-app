@@ -97,9 +97,9 @@ export default function HomeScreen({ navigation }) {
               <Ionicons name="notifications" size={22} color="#fff" />
               <View style={styles.badge} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.logout} onPress={logout}>
+            {/* <TouchableOpacity style={styles.logout} onPress={logout}>
               <Ionicons name="log-out-outline" size={22} color="#fff" />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
         </View>
 

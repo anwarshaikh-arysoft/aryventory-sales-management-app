@@ -43,9 +43,9 @@ const AddNewLeadScreen = () => {
               (isCompleted || isActive) && { backgroundColor: '#22c55e' }
             ]}
           >
-            <Text style={{ color: (isCompleted || isActive) ? '#fff' : '#9ca3af' }}>
+            {/* <Text style={{ color: (isCompleted || isActive) ? '#fff' : '#9ca3af' }}>
               {step.id}
-            </Text>
+            </Text> */}
           </View>
           {!isLast && (
             <View
@@ -56,7 +56,7 @@ const AddNewLeadScreen = () => {
             />
           )}
         </View>
-        <Text style={styles.stepLabel}>{step.title}</Text>
+        {/* <Text style={styles.stepLabel}>{step.title}</Text> */}
       </View>
     );
   };
@@ -73,7 +73,7 @@ const AddNewLeadScreen = () => {
       </View>
 
       {/* Steps */}
-      <View style={styles.stepsWrapper}>
+      {/* <View style={styles.stepsWrapper}>
         <View style={styles.stepsRow}>
           {steps.map((step, index) => (
             <StepIndicator
@@ -84,7 +84,7 @@ const AddNewLeadScreen = () => {
             />
           ))}
         </View>
-      </View>
+      </View> */}
 
       {/* Form */}
       <View style={styles.form}>
@@ -127,8 +127,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: {
     backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    // paddingHorizontal: 20,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -148,9 +148,15 @@ const styles = StyleSheet.create({
   },
   stepLine: { flex: 1, height: 2, backgroundColor: '#e5e7eb', marginHorizontal: 8 },
   stepLabel: { fontSize: 12, color: '#4b5563', textAlign: 'center', marginTop: 4 },
-  form: { paddingHorizontal: 20, paddingBottom: 40 },
+  form: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+    marginTop: 10,
+  },
   sectionTitle: { fontSize: 20, fontWeight: '600', color: '#111827', marginBottom: 24 },
-  inputGroup: { marginBottom: 20 },
+  inputGroup: {
+    marginBottom: 20,
+  },
   label: { fontSize: 16, fontWeight: '500', color: '#111827', marginBottom: 8 },
   inputWrapper: {
     flexDirection: 'row',
