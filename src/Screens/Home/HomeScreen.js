@@ -7,205 +7,451 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  FlatList,
-  Button
+  Alert,
+  RefreshControl,
+  ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 
-export default function HomeScreen({ navigation }) {
+// Media and location capturing components
+import { takeSelfie } from '../../utils/TakeSelfie';
+import { captureLocation } from '../../utils/LocationCapture';
+
+// Get leads
+import { getLeadsByFollowUpDate } from '../../utils/getLeadsByFollowUpDate';
+// Import BASE_URL from '../../config';
+import BASE_URL from '../../config';
+
+
+
+export default function HomeScreen({navigation}) {
+
+  const [test, setTest] = useState(false)
+
+  // Screen Refresh state
+  const [refreshing, setRefreshing] = useState(false);
 
   // Auth Context
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
-  // Stats
+  // Stats State
   const [stats, setStats] = useState(null);
 
-  const schedule = [
-    { name: 'Rajesh Kumar', time: '2:00 PM', status: 'Ongoing' },
-    { name: 'Rajesh Kumar', time: '2:00 PM', status: 'Start' },
-  ];
+  // Selfie and location state
+  const [selfie, setSelfie] = useState(null);
+  const [location, setLocation] = useState(null);
 
-  const activities = [
-    {
-      title: 'Meeting completed with mobile zone',
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit',
-    },
-    {
-      title: 'Meeting completed with mobile zone',
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit',
-    },
-  ];
+  // Shift State 
+  const [loadingAction, setLoadingAction] = useState(null);
+  const [shiftActive, setShiftActive] = useState(false);
+  const [breakActive, setBreakActive] = useState(false);
+  const [shiftStartTime, setShiftStartTime] = useState(null);
+  const [breakStartTime, setBreakStartTime] = useState(null);
+  const [shiftElapsed, setShiftElapsed] = useState(0);
+  const [breakElapsed, setBreakElapsed] = useState(0);
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const token = await AsyncStorage.getItem('token');
-        if (!token) {
-          console.error('No token found');
+  // Leads
+  const [leads, setLeads] = useState([]);
+  const [pagination, setPagination] = useState({});
+  const [loading, setLoading] = useState(false);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+
+    // Data fetch
+    fetchShiftStatus();
+    fetchStats();
+    fetchLeads();
+
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  }, []);
+
+  // Time formater for shifts and breaks
+  const formatTime = (seconds) => {
+    const totalSeconds = Math.floor(seconds);
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = totalSeconds % 60;
+    return `${hrs.toString().padStart(2, '0')}:${mins
+      .toString()
+      .padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  // Send shift actions
+  const sendShiftAction = async (endpoint, actionKey) => {
+    setLoadingAction(actionKey);
+
+    let selfieImage = null;
+    let locationCoords = null;
+
+    try {
+      if (endpoint === '/shift/start' || endpoint === '/shift/end') {
+        selfieImage = await takeSelfie();
+        locationCoords = await captureLocation();
+
+        if (!selfieImage || !locationCoords) {
+          Alert.alert("Error", "Please capture selfie and location");
           return;
         }
 
-        const res = await axios.get('http://192.168.1.48:8001/api/user-stats', {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return Alert.alert('Error', 'No token found');
+
+        const formData = new FormData();
+        formData.append('selfie', { uri: selfieImage, type: 'image/jpeg', name: 'selfie.jpg' });
+        formData.append('latitude', locationCoords.latitude);
+        formData.append('longitude', locationCoords.longitude);
+
+        const res = await axios.post(`${BASE_URL}${endpoint}`, formData, {
           headers: {
             Authorization: `Bearer ${token}`,
-          },
+            'Content-Type': 'multipart/form-data'
+          }
         });
 
-        setStats(res.data);
-      } catch (err) {
-        console.error('Error fetching stats:', err);
-      }
-    };
+        Alert.alert('Success', res.data.message);
+      } else {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return Alert.alert('Error', 'No token found');
 
+        const res = await axios.post(`${BASE_URL}${endpoint}`, null, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        });
+
+        Alert.alert('Success', res.data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', err.response?.data?.message || 'Something went wrong');
+    } finally {
+      setLoadingAction(null);
+      // Re-fetch after action
+      await fetchShiftStatus();
+    }
+  };
+
+
+  // Poll timers
+  useEffect(() => {
+    let interval;
+    if (shiftActive) {
+      interval = setInterval(() => {
+        setShiftElapsed(prev => prev + 1);
+        if (breakActive) {
+          setBreakElapsed(prev => prev + 1);
+        }
+      }, 1000);
+    }
+    return () => {
+      clearInterval(interval);
+    };
+  }, [shiftActive, breakActive, shiftStartTime, breakStartTime]);
+
+  // Fetch shift status on load
+  const fetchShiftStatus = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      const res = await axios.get(`${BASE_URL}/shift/status`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = res.data;
+
+      setShiftActive(data.shift_started && !data.shift_ended);
+      setBreakActive(data.break_started && !data.break_ended);
+      if (data.shift_started) setShiftStartTime(new Date(data.shiftStart).getTime());
+      if (data.break_started) setBreakStartTime(new Date(data.breakStart).getTime());
+
+      if (data.shift_started && !data.shift_ended) {
+        setShiftElapsed(Math.floor(data.shift_timer));
+      } else {
+        setShiftElapsed(0);
+      }
+
+      if (data.break_started && !data.break_ended) {
+        setBreakElapsed(Math.floor(data.break_timer));
+      } else {
+        setBreakElapsed(0);
+      }
+
+    } catch (err) {
+      console.error('Error fetching shift status:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchShiftStatus();
+  }, [shiftActive, breakActive, shiftStartTime, breakStartTime]);
+
+  // Fetch user stats
+  const fetchStats = async () => {
+    try {
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        console.error('No token found');
+        return;
+      }
+
+      const res = await axios.get(`${BASE_URL}/user-stats`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      setStats(res.data);
+    } catch (err) {
+      console.error('Error fetching stats:', err);
+    }
+  };
+
+  // Fetch stats on component mount
+  useEffect(() => {
     fetchStats();
   }, []);
 
-    // ✅ Bottom Navigation buttons data
-  const bottomButtons = [
-    { label: 'ActivityTimeline', icon: 'clock', screen: 'ActivityTimeline' },
-    { label: 'AddNewLead', icon: 'plus-circle', screen: 'AddNewLead' },
-    { label: 'MeetingTimer', icon: 'watch', screen: 'MeetingTimer' },
-    { label: 'MyLeads', icon: 'users', screen: 'MyLeads' },
-    { label: 'Notifications', icon: 'bell', screen: 'Notifications' },
-    { label: 'Profile', icon: 'user', screen: 'Profile' },
-    { label: 'Reports', icon: 'file-text', screen: 'Reports' },
-  ];
+  const fetchLeads = async (page = 1) => {
+    setLoading(true);
+    try {
+      const data = await getLeadsByFollowUpDate(page);
+      setLeads(data.data); // `data` is the Laravel paginated object
+      setPagination({
+        current_page: data.current_page,
+        last_page: data.last_page,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeads();
+  }, []);
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#fff' }}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 80 }}>
+    <View style={{ flex: 1 }}>
+      
+      <StatusBar barStyle="light-content" backgroundColor="#111214" />
+
+      <ScrollView
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        contentContainerStyle={{
+          paddingBottom: 80, // height of fixedActionBar
+        }}
+      >        
         {/* Header */}
-        <View style={styles.header}>
-          <Image
-            source={{ uri: 'https://avatar.iran.liara.run/public/4' }}
-            style={styles.avatar}
-          />
-          <View style={styles.headerText}>
-            <Text style={styles.subText}>Good Morning</Text>
-            <Text style={styles.userName}>{user?.name}</Text>
-            <View style={styles.roleTag}>
-              <Text style={styles.roleText}>{user?.designation}</Text>
-            </View>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-            <TouchableOpacity style={styles.notification}>
-              <Ionicons name="notifications" size={22} color="#fff" />
-              <View style={styles.badge} />
+        <View>
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.navigate('profile-screen')}>
+            <Image
+              source={{ uri: 'https://avatar.iran.liara.run/public/4' }}
+              style={styles.avatar}
+            />
             </TouchableOpacity>
-            {/* <TouchableOpacity style={styles.logout} onPress={logout}>
-              <Ionicons name="log-out-outline" size={22} color="#fff" />
-            </TouchableOpacity> */}
+            <View style={styles.headerText}>
+              <Text style={styles.subText}>Good Morning</Text>
+              <Text style={styles.userName}>{user?.name}</Text>
+              <View style={styles.roleTag}>
+                <Text style={styles.roleText}>{user?.designation}</Text>
+              </View>
+            </View>
+            <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 15 }}>
+              <TouchableOpacity style={styles.notification}>
+                <Ionicons name="notifications" size={22} color="#fff" />
+                <View style={styles.badge} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
         <View style={styles.container}>
-          {/* Actions */}
+
+          {/* Attendance */}
+          {/* Render Shift Controls */}
           <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.addLeadButton}>
-              <Ionicons name="add" size={20} color="#16a34a" />
-              <Text style={styles.addLeadText}>Shift Start</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.startMeetingButton}>
-              <Ionicons name="time" size={20} color="#2563eb" />
-              <Text style={styles.startMeetingText}>Start Break</Text>
-            </TouchableOpacity>
+            {!shiftActive && (
+              <TouchableOpacity
+                style={styles.addLeadButton}
+                onPress={() => sendShiftAction('/shift/start', 'shift-start')}
+                disabled={loadingAction === 'shift-start'}
+              >
+                {loadingAction === 'shift-start'
+                  ? <ActivityIndicator color="#16a34a" />
+                  : <>
+                    <Ionicons name="add" size={20} color="#16a34a" />
+                    <Text style={styles.addLeadText}>Shift Start</Text>
+                  </>
+                }
+              </TouchableOpacity>
+            )}
+
+            {shiftActive && !breakActive && (
+              <>
+                <TouchableOpacity
+                  style={styles.startMeetingButton}
+                  onPress={() => sendShiftAction('/shift/end', 'shift-end')}
+                  disabled={loadingAction === 'shift-end'}
+                >
+                  {loadingAction === 'shift-end'
+                    ? <ActivityIndicator color="#000" />
+                    : <>
+                      <Ionicons name="stop" size={20} color="#000" />
+                      <Text style={styles.startMeetingText}>Shift End</Text>
+                    </>
+                  }
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.startMeetingButton}
+                  onPress={() => sendShiftAction('/shift/start-break', 'start-break')}
+                  disabled={loadingAction === 'start-break'}
+                >
+                  {loadingAction === 'start-break'
+                    ? <ActivityIndicator color="#2563eb" />
+                    : <>
+                      <Ionicons name="time" size={20} color="#2563eb" />
+                      <Text style={styles.startMeetingText}>Start Break</Text>
+                    </>
+                  }
+                </TouchableOpacity>
+              </>
+            )}
+
+            {breakActive && (
+              <TouchableOpacity
+                style={styles.startMeetingButton}
+                onPress={() => sendShiftAction('/shift/end-break', 'end-break')}
+                disabled={loadingAction === 'end-break'}
+              >
+                {loadingAction === 'end-break'
+                  ? <ActivityIndicator color="#ef4444" />
+                  : <>
+                    <Ionicons name="pause" size={20} color="#ef4444" />
+                    <Text style={styles.startMeetingText}>End Break</Text>
+                  </>
+                }
+              </TouchableOpacity>
+            )}
           </View>
+
+
+          {/* Timers */}
+          {shiftActive && (
+            <Text style={{ marginTop: 8, fontWeight: 'bold' }}>
+              Shift Time: {formatTime(shiftElapsed)}
+            </Text>
+          )}
+          {breakActive && (
+            <Text style={{ marginTop: 4, fontWeight: 'bold', color: 'red' }}>
+              Break Time: {formatTime(breakElapsed)}
+            </Text>
+          )}
 
           {/* Stats */}
           <View style={styles.statsGrid}>
-            {stats &&
-              Object.entries(stats).map(([title, stat], index) => (
-                <View key={index} style={styles.statCard}>
+            {stats && Object.entries(stats).map(([title, stat], index) => (
+              <View key={index} style={styles.statCard}>
+                <View style={styles.statValueContainer}>
                   <Text style={styles.statLabel}>{title}</Text>
-                  <View style={styles.statValueContainer}>
-                    <Text style={styles.statValue}>{stat}</Text>
-                    <MaterialIcons
-                      name="calendar-today"
-                      size={18}
-                      color="#f97316"
-                    />
-                  </View>
+                  <MaterialIcons name="calendar-today" size={18} color="#f97316" />
                 </View>
-              ))}
+                <Text style={styles.statValue}>{title == 'target' ? stats['sold'] + ' /' : ''} {stat}</Text>
+              </View>
+            ))}
           </View>
 
           {/* Schedule */}
-          <Text style={styles.sectionTitle}>Today’s Schedule</Text>
-          {schedule.map((item, index) => (
-            <View style={styles.scheduleItem} key={index}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.scheduleName}>{item.name}</Text>
-                <Text style={styles.scheduleLocation}>At Mobile Zone</Text>
-              </View>
-              <Text style={styles.scheduleTime}>{item.time}</Text>
-              <View
-                style={[
-                  styles.statusTag,
-                  item.status === 'Ongoing'
-                    ? styles.statusOngoing
-                    : styles.statusStart,
-                ]}
-              >
-                <Text style={styles.statusText}>{item.status}</Text>
-              </View>
-            </View>
-          ))}
 
-          {/* Actions */}
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={styles.addLeadButton}>
-              <Ionicons name="add" size={20} color="#16a34a" />
-              <Text style={styles.addLeadText}>Add Lead</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.startMeetingButton}>
-              <Ionicons name="time" size={20} color="#2563eb" />
-              <Text style={styles.startMeetingText}>Start Meeting</Text>
-            </TouchableOpacity>
+          <View>
+            {/* Follow-up Leads */}
+            <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
+
+            {loading ? (
+              <ActivityIndicator size="large" color="#000" />
+            ) : (
+              <>
+                {leads.map((lead, index) => (
+                  <TouchableOpacity 
+                    key={index}
+                    title={lead.contact_person}
+                    onPress={() => {
+                      // Navigate to ShowLead screen with lead details
+                      navigation.navigate('showlead', { lead });
+                    }}
+                  >
+                  <View style={styles.scheduleItem}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.scheduleName}>{lead.contact_person}</Text>
+                      <Text style={styles.scheduleLocation}>{lead.shop_name}</Text>
+                    </View>
+                    <Text style={styles.scheduleTime}>
+                      {lead.next_follow_up_date || 'No date'}
+                    </Text>
+                    <View
+                      style={[
+                        styles.statusTag,
+                        lead.lead_status_data.name == 'Sold'
+                          ? styles.statusOngoing
+                          : styles.statusStart,
+                      ]}
+                    >
+                      <Text style={styles.statusText}>
+                        {lead.lead_status_data.name || 'Pending'}
+                      </Text>
+                    </View>
+                  </View>
+                  </TouchableOpacity>
+                ))}
+
+                {/* Pagination Controls */}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+                  <TouchableOpacity
+                    onPress={() => fetchLeads(pagination.current_page - 1)}
+                    disabled={pagination.current_page <= 1}
+                    style={{ opacity: pagination.current_page <= 1 ? 0.5 : 1 }}
+                  >
+                    <Text style={{ color: '#007bff' }}>Previous</Text>
+                  </TouchableOpacity>
+
+                  <Text>
+                    Page {pagination.current_page} of {pagination.last_page}
+                  </Text>
+
+                  <TouchableOpacity
+                    onPress={() => fetchLeads(pagination.current_page + 1)}
+                    disabled={pagination.current_page >= pagination.last_page}
+                    style={{ opacity: pagination.current_page >= pagination.last_page ? 0.5 : 1 }}
+                  >
+                    <Text style={{ color: '#007bff' }}>Next</Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
           </View>
 
-          {/* Recent Activity */}
-          <View style={styles.recentActivityHeader}>
-            <Text style={styles.sectionTitle}>Recent Activity</Text>
-            <TouchableOpacity>
-              <Text style={styles.viewAllText}>View All</Text>
-            </TouchableOpacity>
-          </View>
-          {activities.map((activity, index) => (
-            <View key={index} style={styles.activityItem}>
-              <Image
-                source={{ uri: 'https://i.ibb.co/Fq2yzvJ/thumb.jpg' }}
-                style={styles.thumb}
-              />
-              <View style={{ flex: 1 }}>
-                <Text numberOfLines={1} style={styles.activityTitle}>
-                  {activity.title}
-                </Text>
-                <Text numberOfLines={1} style={styles.activityDesc}>
-                  {activity.description}
-                </Text>
-              </View>
-            </View>
-          ))}
         </View>
       </ScrollView>
+      {/* Fixed Actions Bar */}
+      <View style={[styles.fixedActionBar, styles.container]}>
+        <TouchableOpacity style={styles.addLeadButton} onPress={() => navigation.navigate('addlead')}>
+          <Ionicons name="add" size={20} color="#16a34a" />
+          <Text style={styles.addLeadText}>Add Lead</Text>
+        </TouchableOpacity>
 
-      {/* ✅ Fixed Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        {bottomButtons.map((btn, index) => (
-          <TouchableOpacity
-            key={index}
-            style={styles.navItem}
-            onPress={() => navigation.navigate(btn.screen)}
-          >
-            <Feather name={btn.icon} size={20} color="#FF7A00" />
-            <Text style={styles.navText}>{btn.label}</Text>
-          </TouchableOpacity>
-        ))}
+        <TouchableOpacity style={styles.startMeetingButton}>
+          <Ionicons name="time" size={20} color="#2563eb" />
+          <Text style={styles.startMeetingText}>Start Meeting</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -218,7 +464,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#111214',
-    paddingTop: 30,
+    paddingTop: 45,
     paddingBottom: 20.5,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30
@@ -270,7 +516,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    elevation: 2,
   },
   statLabel: { color: '#888', marginBottom: 6, textTransform: 'capitalize' },
   statValueContainer: {
@@ -355,18 +600,18 @@ const styles = StyleSheet.create({
   },
   activityTitle: { fontWeight: 'bold' },
   activityDesc: { fontSize: 12, color: '#666' },
-    bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    backgroundColor: '#fff',
-    paddingVertical: 8,
-    borderTopWidth: 1,
-    borderColor: '#ddd',
+  fixedActionBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    paddingBottom: 20,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#ddd',
   },
-  navItem: { alignItems: 'center' },
-  navText: { fontSize: 10, marginTop: 4, color: '#FF7A00' },
+
 });

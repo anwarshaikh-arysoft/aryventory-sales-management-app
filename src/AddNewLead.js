@@ -43,9 +43,9 @@ const AddNewLeadScreen = () => {
               (isCompleted || isActive) && { backgroundColor: '#22c55e' }
             ]}
           >
-            {/* <Text style={{ color: (isCompleted || isActive) ? '#fff' : '#9ca3af' }}>
+            <Text style={{ color: (isCompleted || isActive) ? '#fff' : '#9ca3af' }}>
               {step.id}
-            </Text> */}
+            </Text>
           </View>
           {!isLast && (
             <View
@@ -56,24 +56,15 @@ const AddNewLeadScreen = () => {
             />
           )}
         </View>
-        {/* <Text style={styles.stepLabel}>{step.title}</Text> */}
+        <Text style={styles.stepLabel}>{step.title}</Text>
       </View>
     );
   };
 
   return (
     <ScrollView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-          <ChevronLeft size={24} color="#374151" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add New Lead</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
       {/* Steps */}
-      {/* <View style={styles.stepsWrapper}>
+      <View style={styles.stepsWrapper}>
         <View style={styles.stepsRow}>
           {steps.map((step, index) => (
             <StepIndicator
@@ -84,7 +75,7 @@ const AddNewLeadScreen = () => {
             />
           ))}
         </View>
-      </View> */}
+      </View>
 
       {/* Form */}
       <View style={styles.form}>
@@ -127,8 +118,8 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9fafb' },
   header: {
     backgroundColor: '#fff',
-    // paddingHorizontal: 20,
-    paddingVertical: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -139,8 +130,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#111827' },
   stepsWrapper: { paddingHorizontal: 20, paddingVertical: 24 },
   stepsRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  stepContainer: { alignItems: 'center', flex: 1 },
-  stepRow: { flexDirection: 'row', alignItems: 'center', width: '100%' },
+  stepContainer: {alignItems: 'center', justifyContent: 'center', flex: 1 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', width: '100%'},
   stepCircle: {
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: '#e5e7eb',
@@ -148,15 +139,9 @@ const styles = StyleSheet.create({
   },
   stepLine: { flex: 1, height: 2, backgroundColor: '#e5e7eb', marginHorizontal: 8 },
   stepLabel: { fontSize: 12, color: '#4b5563', textAlign: 'center', marginTop: 4 },
-  form: {
-    paddingHorizontal: 20,
-    paddingBottom: 40,
-    marginTop: 10,
-  },
+  form: { paddingHorizontal: 20, paddingBottom: 40 },
   sectionTitle: { fontSize: 20, fontWeight: '600', color: '#111827', marginBottom: 24 },
-  inputGroup: {
-    marginBottom: 20,
-  },
+  inputGroup: { marginBottom: 20 },
   label: { fontSize: 16, fontWeight: '500', color: '#111827', marginBottom: 8 },
   inputWrapper: {
     flexDirection: 'row',

@@ -2,6 +2,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import BASE_URL from '../config';
+
 
 const AuthContext = createContext({});
 
@@ -17,8 +19,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
-
-  const BASE_URL = 'http://192.168.1.48:8001/api'; // Change to your Laravel API base URL
 
   useEffect(() => {
     checkAuthState();
