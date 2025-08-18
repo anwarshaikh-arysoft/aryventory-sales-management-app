@@ -20,6 +20,16 @@ import MeetingScreen from '../Screens/Leads/Meeting';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 
+import ActivityTimeline from '../ActivityTimeline';
+import AddNewLead from '../AddNewLead';
+import MeetingTimer from '../MeetingTimer';
+import MyLeads from '../MyLeads';
+import Notifications from '../Notifications';
+import Reports from '../Reports';
+import AddLead from '../Screens/Leads/AddLead';
+import ProfileScreen from '../Screens/Home/ProfileScreen';
+
+
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
@@ -65,11 +75,19 @@ export default function AppNavigator() {
           {user ? (
             <>
               <Stack.Screen options={{ headerShown: false }} name="Home" component={HomeScreen} />
-              <Stack.Screen options={{ title: 'Lead' }} name="ShowLead" component={ShowLead} />
+              <Stack.Screen options={{ title : 'Profile', headerStyle: {backgroundColor: '#111214'}, headerTintColor: '#fff', }} name="profile-screen" component={ProfileScreen} />
+              <Stack.Screen options={{ title: 'Lead' }} name="showlead" component={ShowLead} />
+              <Stack.Screen options={{ title: 'Add Lead' }} name="addlead" component={AddLead} />
               <Stack.Screen name="Meeting" component={MeetingScreen} />
 
               <Stack.Screen name="Visits" component={VisitsScreen} />
               <Stack.Screen name="Orders" component={OrdersScreen} />
+              <Stack.Screen name="ActivityTimeline" component={ActivityTimeline} />
+              <Stack.Screen name="AddNewLead" component={AddNewLead} />
+              <Stack.Screen name="MeetingTimer" component={MeetingTimer} />
+              <Stack.Screen name="MyLeads" component={MyLeads} />
+              <Stack.Screen name="Notifications" component={Notifications} />              
+              <Stack.Screen name="Reports" component={Reports} />
             </>
           ) : (
             <>

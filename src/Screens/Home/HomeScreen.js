@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 
 import { Ionicons, MaterialIcons } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
@@ -25,6 +26,7 @@ import { captureLocation } from '../../utils/LocationCapture';
 
 // Get leads
 import { getLeadsByFollowUpDate } from '../../utils/getLeadsByFollowUpDate';
+// Import BASE_URL from '../../config';
 import BASE_URL from '../../config';
 
 
@@ -37,7 +39,7 @@ export default function HomeScreen({navigation}) {
   const [refreshing, setRefreshing] = useState(false);
 
   // Auth Context
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   // Stats State
   const [stats, setStats] = useState(null);
@@ -59,22 +61,6 @@ export default function HomeScreen({navigation}) {
   const [leads, setLeads] = useState([]);
   const [pagination, setPagination] = useState({});
   const [loading, setLoading] = useState(false);
-
-  const schedule = [
-    { name: 'Rajesh Kumar', time: '2:00 PM', status: 'Ongoing' },
-    { name: 'Rajesh Kumar', time: '2:00 PM', status: 'Start' },
-  ];
-
-  const activities = [
-    {
-      title: 'Meeting completed with mobile zone',
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit',
-    },
-    {
-      title: 'Meeting completed with mobile zone',
-      description: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit',
-    },
-  ];
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -227,6 +213,8 @@ export default function HomeScreen({navigation}) {
       console.error('Error fetching stats:', err);
     }
   };
+
+  // Fetch stats on component mount
   useEffect(() => {
     fetchStats();
   }, []);
@@ -251,6 +239,9 @@ export default function HomeScreen({navigation}) {
 
   return (
     <View style={{ flex: 1 }}>
+      
+      <StatusBar barStyle="light-content" backgroundColor="#111214" />
+
       <ScrollView
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -258,14 +249,16 @@ export default function HomeScreen({navigation}) {
         contentContainerStyle={{
           paddingBottom: 80, // height of fixedActionBar
         }}
-      >
+      >        
         {/* Header */}
         <View>
           <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.navigate('profile-screen')}>
             <Image
               source={{ uri: 'https://avatar.iran.liara.run/public/4' }}
               style={styles.avatar}
             />
+            </TouchableOpacity>
             <View style={styles.headerText}>
               <Text style={styles.subText}>Good Morning</Text>
               <Text style={styles.userName}>{user?.name}</Text>
@@ -277,9 +270,6 @@ export default function HomeScreen({navigation}) {
               <TouchableOpacity style={styles.notification}>
                 <Ionicons name="notifications" size={22} color="#fff" />
                 <View style={styles.badge} />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.logout} onPress={logout}>
-                <Ionicons name="log-out-outline" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -397,7 +387,7 @@ export default function HomeScreen({navigation}) {
                     title={lead.contact_person}
                     onPress={() => {
                       // Navigate to ShowLead screen with lead details
-                      navigation.navigate('ShowLead', { lead });
+                      navigation.navigate('showlead', { lead });
                     }}
                   >
                   <View style={styles.scheduleItem}>
@@ -454,7 +444,7 @@ export default function HomeScreen({navigation}) {
       </ScrollView>
       {/* Fixed Actions Bar */}
       <View style={[styles.fixedActionBar, styles.container]}>
-        <TouchableOpacity style={styles.addLeadButton}>
+        <TouchableOpacity style={styles.addLeadButton} onPress={() => navigation.navigate('addlead')}>
           <Ionicons name="add" size={20} color="#16a34a" />
           <Text style={styles.addLeadText}>Add Lead</Text>
         </TouchableOpacity>
@@ -475,7 +465,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#111214',
-    paddingTop: 30,
+    paddingTop: 45,
     paddingBottom: 20.5,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30
@@ -527,7 +517,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
-    elevation: 2,
   },
   statLabel: { color: '#888', marginBottom: 6, textTransform: 'capitalize' },
   statValueContainer: {

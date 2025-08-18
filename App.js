@@ -36,14 +36,18 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      
+
       {/* Transparent StatusBar */}
-      <StatusBar />
+      <StatusBar
+        translucent={true}        // Allows content to go under it
+        backgroundColor="transparent" // Makes background see-through
+        barStyle="dark-content"   // or "light-content" depending on your design
+      />
 
       <SafeAreaView
         style={{
           flex: 1,
-          backgroundColor: 'transparent', // Safe area is transparent
+          backgroundColor: '#f8f8f8', // Safe area is transparent
         }}
       >
         <PaperProvider
@@ -52,6 +56,7 @@ export default function App() {
             colors: {
               ...theme.colors,
               background: 'transparent', // Paper root background
+              
             },
           }}
         >
