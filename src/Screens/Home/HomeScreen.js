@@ -12,8 +12,7 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
-
-import { Ionicons, MaterialIcons } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
+import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
