@@ -2,7 +2,7 @@ import React from 'react';
 import { StatusBar, Platform } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
-
+import Toast from 'react-native-toast-message';
 import { AuthProvider } from './src/context/AuthContext';
 
 // import { SafeAreaView } from 'react-native';
@@ -42,7 +42,7 @@ export default function App() {
         translucent={true}        // Allows content to go under it
         backgroundColor="transparent" // Makes background see-through
         barStyle="dark-content"   // or "light-content" depending on your design
-      />
+      />      
 
       <SafeAreaView
         style={{
@@ -56,13 +56,13 @@ export default function App() {
             colors: {
               ...theme.colors,
               background: 'transparent', // Paper root background
-              
+
             },
           }}
         >
-          <AuthProvider>
-            <AppNavigator />
-          </AuthProvider>
+            <AuthProvider>              
+              <AppNavigator />
+            </AuthProvider>
         </PaperProvider>
       </SafeAreaView>
     </SafeAreaProvider>

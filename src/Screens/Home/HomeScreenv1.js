@@ -12,7 +12,8 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
-import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
+
+import { Ionicons, MaterialIcons } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
@@ -27,10 +28,11 @@ import { captureLocation } from '../../utils/LocationCapture';
 import { getLeadsByFollowUpDate } from '../../utils/getLeadsByFollowUpDate';
 // Import BASE_URL from '../../config';
 import BASE_URL from '../../config';
+import Toast from 'react-native-toast-message';
 
 
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({navigation}) {
 
   const [test, setTest] = useState(false)
 
@@ -98,12 +100,12 @@ export default function HomeScreen({ navigation }) {
         locationCoords = await captureLocation();
 
         if (!selfieImage || !locationCoords) {
-          Alert.alert("Error", "Please capture selfie and location");
+          Toast.show({type: "success", text1: "Please capture selfie and location"});
           return;
         }
 
         const token = await AsyncStorage.getItem('token');
-        if (!token) return Alert.alert('Error', 'No token found');
+        if (!token) return Toast.show({type: "error", text1: "No token found"});
 
         const formData = new FormData();
         formData.append('selfie', { uri: selfieImage, type: 'image/jpeg', name: 'selfie.jpg' });
@@ -116,11 +118,10 @@ export default function HomeScreen({ navigation }) {
             'Content-Type': 'multipart/form-data'
           }
         });
-
-        Alert.alert('Success', res.data.message);
+        Toast.show({type: "success", text1: res.data.message});
       } else {
         const token = await AsyncStorage.getItem('token');
-        if (!token) return Alert.alert('Error', 'No token found');
+        if (!token) return Toast.show({type: "error", text1: "No token found"});
 
         const res = await axios.post(`${BASE_URL}${endpoint}`, null, {
           headers: {
@@ -128,11 +129,11 @@ export default function HomeScreen({ navigation }) {
           }
         });
 
-        Alert.alert('Success', res.data.message);
+        Toast.show({type: "success", text1: res.data.message});
       }
     } catch (err) {
       console.error(err);
-      Alert.alert('Error', err.response?.data?.message || 'Something went wrong');
+      Toast.show({type: "error", text1: err.response?.data?.message || 'Something went wrong'});
     } finally {
       setLoadingAction(null);
       // Re-fetch after action
@@ -238,7 +239,7 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <View style={{ flex: 1 }}>
-
+      
       <StatusBar barStyle="light-content" backgroundColor="#111214" />
 
       <ScrollView
@@ -248,15 +249,15 @@ export default function HomeScreen({ navigation }) {
         contentContainerStyle={{
           paddingBottom: 80, // height of fixedActionBar
         }}
-      >
+      >        
         {/* Header */}
         <View>
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.navigate('profile-screen')}>
-              <Image
-                source={{ uri: 'https://avatar.iran.liara.run/public/4' }}
-                style={styles.avatar}
-              />
+            <Image
+              source={{ uri: 'https://avatar.iran.liara.run/public/4' }}
+              style={styles.avatar}
+            />
             </TouchableOpacity>
             <View style={styles.headerText}>
               <Text style={styles.subText}>Good Morning</Text>
@@ -269,15 +270,6 @@ export default function HomeScreen({ navigation }) {
               <TouchableOpacity style={styles.notification}>
                 <Ionicons name="notifications" size={22} color="#fff" />
                 <View style={styles.badge} />
-              </TouchableOpacity>
-
-              {/* Add Shift History Button */}
-              <TouchableOpacity
-                style={styles.historyButton}
-                onPress={() => navigation.navigate('ShiftHistory')}
-              >
-                <Ionicons name="time" size={22} color="#fff" />
-
               </TouchableOpacity>
             </View>
           </View>
@@ -383,17 +375,14 @@ export default function HomeScreen({ navigation }) {
 
           <View>
             {/* Follow-up Leads */}
-            <View style={[styles.recentActivityHeader, {justifyContent: 'flex-start', gap: 10,}]}>
-              <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
-              <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{leads.length}</Text>
-            </View>
+            <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
 
             {loading ? (
               <ActivityIndicator size="large" color="#000" />
             ) : (
               <>
                 {leads.map((lead, index) => (
-                  <TouchableOpacity
+                  <TouchableOpacity 
                     key={index}
                     title={lead.contact_person}
                     onPress={() => {
@@ -401,27 +390,27 @@ export default function HomeScreen({ navigation }) {
                       navigation.navigate('showlead', { lead });
                     }}
                   >
-                    <View style={styles.scheduleItem}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.scheduleName}>{lead.contact_person}</Text>
-                        <Text style={styles.scheduleLocation}>{lead.shop_name}</Text>
-                      </View>
-                      <Text style={styles.scheduleTime}>
-                        {lead.next_follow_up_date || 'No date'}
-                      </Text>
-                      <View
-                        style={[
-                          styles.statusTag,
-                          lead.lead_status_data.name == 'Sold'
-                            ? styles.statusOngoing
-                            : styles.statusStart,
-                        ]}
-                      >
-                        <Text style={styles.statusText}>
-                          {lead.lead_status_data.name || 'Pending'}
-                        </Text>
-                      </View>
+                  <View style={styles.scheduleItem}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.scheduleName}>{lead.contact_person}</Text>
+                      <Text style={styles.scheduleLocation}>{lead.shop_name}</Text>
                     </View>
+                    <Text style={styles.scheduleTime}>
+                      {lead.next_follow_up_date || 'No date'}
+                    </Text>
+                    <View
+                      style={[
+                        styles.statusTag,
+                        lead.lead_status_data.name == 'Sold'
+                          ? styles.statusOngoing
+                          : styles.statusStart,
+                      ]}
+                    >
+                      <Text style={styles.statusText}>
+                        {lead.lead_status_data.name || 'Pending'}
+                      </Text>
+                    </View>
+                  </View>
                   </TouchableOpacity>
                 ))}
 
@@ -460,7 +449,7 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.addLeadText}>Add Lead</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.startMeetingButton} onPress={() => navigation.navigate('Meeting')}>
+        <TouchableOpacity style={styles.startMeetingButton}>
           <Ionicons name="time" size={20} color="#2563eb" />
           <Text style={styles.startMeetingText}>Start Meeting</Text>
         </TouchableOpacity>
@@ -500,12 +489,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     position: 'relative',
   },
-  historyButton: {
-    backgroundColor: '#888',
-    padding: 8,
-    borderRadius: 20,
-    position: 'relative',
-  },
   logout: {
     backgroundColor: '#888',
     padding: 8,
@@ -528,64 +511,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 20,
   },
-
-  // Current Shift Status Card
-  currentShiftCard: {
-    backgroundColor: '#f0f9ff',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#2563eb',
-  },
-  shiftCardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  shiftCardTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1e40af',
-  },
-  shiftStatusIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    backgroundColor: '#94a3b8',
-  },
-  activeShiftIndicator: {
-    backgroundColor: '#16a34a',
-  },
-  timerRow: {
-    marginBottom: 8,
-  },
-  timerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  timerLabel: {
-    fontSize: 14,
-    color: '#475569',
-    marginLeft: 8,
-    marginRight: 8,
-    fontWeight: '600',
-  },
-  timerValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1e40af',
-    fontFamily: 'monospace',
-  },
-
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 20,
-  },
-
   statCard: {
     width: '47%',
     backgroundColor: '#f9fafb',
@@ -634,7 +559,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 16,
   },
-  
   addLeadButton: {
     flexDirection: 'row',
     alignItems: 'center',

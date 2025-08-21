@@ -7,10 +7,13 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
-    Alert
+    Alert,
+    Button,
+    Platform
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import BASE_URL from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureLocation } from '../../utils/LocationCapture';
@@ -21,9 +24,24 @@ export default function AddLead({ navigation }) {
     const [step, setStep] = useState(1);
     const [location, setLocation] = useState({ latitude: '', longitude: '' });
 
-    useEffect(() => {
-        (async () => {
-            const coords = await captureLocation();
+    const [date, setDate] = useState(new Date());
+    const [show, setShow] = useState(false);
+
+    const onChange = (event, selectedDate) => {
+        if (selectedDate) {
+            setShow(Platform.OS === 'ios'); // for iOS keep picker open, Android auto closes
+            setDate(selectedDate);
+
+            // format YYYY-MM-DD
+            const formatted = selectedDate.toISOString().split("T")[0];
+            handleChange('next_follow_up_date', formatted);
+        } else {
+            setShow(false);
+        }
+    };
+
+    const updateLocation = async () => {
+        const coords = await captureLocation();
             if (coords) {
                 const locationString = `${coords.latitude},${coords.longitude}`;
                 setLocation({ latitude: coords.latitude, longitude: coords.longitude });
@@ -32,8 +50,7 @@ export default function AddLead({ navigation }) {
                     gps_location: locationString
                 }));
             }
-        })();
-    }, []);
+    };
 
     const [formData, setFormData] = useState({
         shop_name: '',
@@ -46,14 +63,16 @@ export default function AddLead({ navigation }) {
         pincode: '',
         gps_location: location.latitude && location.longitude ? `${location.latitude},${location.longitude}` : '',
         business_type: '',
-        monthly_sales_volume: '',
+        monthly_sales_volume : '1',
         current_system: '',
         lead_status: '',
         plan_interest: '',        // NEW
-        next_follow_up_date: '',  // NEW
+        next_follow_up_date: date,  // NEW
         meeting_notes: '',        // NEW
-        prospect_rating: ''
+        prospect_rating: '5',      // NEW
     });
+
+
 
     // Dummy dropdown options
     const businessTypes = [
@@ -64,14 +83,14 @@ export default function AddLead({ navigation }) {
         { id: 5, name: 'Repair Center' },
         { id: 6, name: 'Others' },
     ];
-    const monthlySales = [
-        { id: 1, name: '₹0 - ₹50,000' },
-        { id: 2, name: '₹50,000 - ₹1,00,000' },
-        { id: 3, name: '₹1,00,000 - ₹5,00,000' },
-        { id: 4, name: '₹5,00,000 - ₹10,00,000' },
-        { id: 5, name: '₹10,00,000+' },
 
+    const plans = [
+        { id: 'Free', name: 'Free' },
+        { id: 'Standard', name: 'Standard' },
+        { id: 'Pro', name: 'Pro' },
+        { id: 'Premium', name: 'Premium' },
     ];
+
     const currentSystems = [
         { id: 1, name: 'Manual/Register' },
         { id: 2, name: 'Excel Sheets' },
@@ -87,10 +106,6 @@ export default function AddLead({ navigation }) {
         { id: 6, name: 'Already Using CRM' },
     ];
 
-    const prospect_rating = [1, 2, 3, 4, 5].map(num => ({
-        id: num,
-        name: `Rating ${num}`
-    }));
 
     const handleChange = (name, value) => {
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -150,29 +165,50 @@ export default function AddLead({ navigation }) {
                         <InputField icon="location-outline" placeholder="Area / Locality *" value={formData.area_locality} onChangeText={text => handleChange('area_locality', text)} />
                         <InputField icon="location-outline" placeholder="Pincode *" value={formData.pincode} onChangeText={text => handleChange('pincode', text)} keyboardType="numeric" />
                         <InputField icon="home-outline" placeholder="Address *" value={formData.address} onChangeText={text => handleChange('address', text)} multiline />
-                        <View style={[styles.gpsRow, {display: 'none'}]}>
+                        <View style={[styles.gpsRow]}>
                             <View style={{ flex: 1 }}>
                                 <InputField icon="navigate-outline" placeholder="GPS Location *" value={formData.gps_location} onChangeText={text => handleChange('gps_location', text)} />
                             </View>
-                            <TouchableOpacity style={styles.gpsButton} onPress={() => handleChange('gps_location', '12.9716,77.5946')}>
+                            <TouchableOpacity style={styles.gpsButton} onPress={() => updateLocation()}>
                                 <Icon name="locate-outline" size={20} color="#fff" />
                             </TouchableOpacity>
                         </View>
 
+
                         {/* New fields */}
-                        <InputField
+                        {/* <InputField
                             icon="document-text-outline"
                             placeholder="Plan Interest"
                             value={formData.plan_interest}
                             onChangeText={text => handleChange('plan_interest', text)}
-                        />
+                        /> */}
 
-                        <InputField
-                            icon="calendar-outline"
-                            placeholder="Next Follow Up Date (YYYY-MM-DD)"
-                            value={formData.next_follow_up_date}
-                            onChangeText={text => handleChange('next_follow_up_date', text)}
-                        />
+                        <Dropdown label="Plan Interest" selectedValue={formData.plan_interest} onValueChange={val => handleChange('plan_interest', val)} options={plans} />
+
+                        <View style={styles.gpsRow}>
+                            <View style={{ flex: 1 }}>
+                                <InputField
+                                    icon="calendar-outline"
+                                    placeholder="Next Follow Up Date (YYYY-MM-DD)"
+                                    value={formData.next_follow_up_date}
+                                    editable={false} // prevent typing, only pick via calendar
+                                />
+                            </View>
+                            <TouchableOpacity onPress={() => setShow(true)} style={styles.gpsButton}>
+                                <Icon name="calendar-outline" size={20} color="#fff" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* <Button title="Select Follow Up Date" onPress={() => setShow(true)} /> */}
+
+                        {show && (
+                            <DateTimePicker
+                                value={date}
+                                mode="date"
+                                display="default"
+                                onChange={onChange}
+                            />
+                        )}
 
                         <InputField
                             icon="create-outline"
@@ -188,10 +224,8 @@ export default function AddLead({ navigation }) {
                     <View style={styles.card}>
                         <Text style={styles.sectionTitle}>Business Details</Text>
                         <Dropdown label="Business Type" selectedValue={formData.business_type} onValueChange={val => handleChange('business_type', val)} options={businessTypes} />
-                        <Dropdown label="Monthly Sales Volume" selectedValue={formData.monthly_sales_volume} onValueChange={val => handleChange('monthly_sales_volume', val)} options={monthlySales} />
                         <Dropdown label="Current System" selectedValue={formData.current_system} onValueChange={val => handleChange('current_system', val)} options={currentSystems} />
                         <Dropdown label="Lead Status" selectedValue={formData.lead_status} onValueChange={val => handleChange('lead_status', val)} options={leadStatuses} />
-                        <Dropdown label="Prospect Rating" selectedValue={formData.prospect_rating} onValueChange={val => handleChange('prospect_rating', val)} options={prospect_rating} />
                     </View>
                 );
             default:

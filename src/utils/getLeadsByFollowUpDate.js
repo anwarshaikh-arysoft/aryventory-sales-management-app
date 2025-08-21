@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import BASE_URL from '../config';
 
-export const getLeadsByFollowUpDate = async (page = 1, perPage = 5) => {
+export const getLeadsByFollowUpDate = async (page = 1, perPage = 15) => {
   try {
     const token = await AsyncStorage.getItem('token'); // If using Sanctum/JWT
     const response = await axios.get(

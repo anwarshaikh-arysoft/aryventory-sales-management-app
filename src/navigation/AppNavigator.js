@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ThemeProvider } from '../../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import Toast from 'react-native-toast-message';
 
 import LoginScreen from '../Screens/Auth/LoginScreen';
 import RegisterScreen from '../Screens/Auth/RegisterScreen';
@@ -28,6 +29,8 @@ import Notifications from '../Notifications';
 import Reports from '../Reports';
 import AddLead from '../Screens/Leads/AddLead';
 import ProfileScreen from '../Screens/Home/ProfileScreen';
+import ShiftHistoryScreen from '../ShiftHistoryScreen';
+
 
 
 const Stack = createNativeStackNavigator();
@@ -88,6 +91,7 @@ export default function AppNavigator() {
               <Stack.Screen name="MyLeads" component={MyLeads} />
               <Stack.Screen name="Notifications" component={Notifications} />              
               <Stack.Screen name="Reports" component={Reports} />
+              <Stack.Screen name="ShiftHistory" options={{ title: 'Shift History' }} component={ShiftHistoryScreen} />
             </>
           ) : (
             <>
@@ -99,6 +103,8 @@ export default function AppNavigator() {
             </>
           )}
         </Stack.Navigator>
+
+        <Toast />
       </NavigationContainer>
     </ThemeProvider>
   );

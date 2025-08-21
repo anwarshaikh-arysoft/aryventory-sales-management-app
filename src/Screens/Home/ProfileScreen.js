@@ -10,14 +10,16 @@ import {
   StatusBar,
   Switch,
   ScrollView,
+  Button,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../../context/AuthContext';
 import BASE_URL from '../../config';
 import axios from 'axios';
+import Toast from 'react-native-toast-message';
 
-const ProfileScreen = () => {
+const ProfileScreen = ({navigation}) => {
 
   // Auth Context
   const { user, logout } = useAuth();
@@ -33,11 +35,56 @@ const ProfileScreen = () => {
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-  const toggleSetting = (setting) => {
-    setSettings(prev => ({
-      ...prev,
-      [setting]: !prev[setting]
-    }));
+  // ✅ Toggle handler
+  const toggleSetting = async (key) => {
+    // save previous state in case API fails
+    const prevSettings = { ...settings };
+
+    // update local state immediately for snappy UI
+    const newSettings = { ...settings, [key]: !settings[key] };
+    setSettings(newSettings);
+
+    try {
+      await updateSettings(newSettings);
+    } catch (error) {
+      // rollback if API fails
+      setSettings(prevSettings);
+    }
+  };
+
+  // ✅ API call to update settings
+  const updateSettings = async (newSettings) => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+
+      const preferencesPayload = [
+        { preference_id: 1, status: newSettings.locationTracking },
+        { preference_id: 2, status: newSettings.pushNotification },
+        { preference_id: 3, status: newSettings.autoSync },
+      ];
+
+      const response = await fetch(`${BASE_URL}/user-preferences/update`, {
+        method: "PUT", // or PUT depending on your backend route
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ preferences: preferencesPayload }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to update preferences");
+      }
+
+      console.log("✅ Preferences updated:", data.message);
+      Toast.show({ type: 'success', text1: data.message });
+
+    } catch (error) {
+      Toast.show({ type: 'error', text1: "Unable to update preferences." });
+      throw error; // so toggleSetting can rollback state
+    }
   };
 
   const handleLogoutClick = () => {
@@ -81,21 +128,60 @@ const ProfileScreen = () => {
     fetchStats();
   }, []);
 
-  // Fetch user settings from AsyncStorage
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {        
-        const storedSettings = await AsyncStorage.getItem('userSettings');
-        console.log('Stored Settings:', storedSettings);
-        if (storedSettings) {
-          setSettings(JSON.parse(storedSettings));
-        }
-      } catch (error) {
-        console.error('Error fetching settings:', error);
-      }
-    };
 
+
+  // Fetch settings from backend
+  const fetchSettings = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token"); // if you're storing JWT/Auth token
+      const response = await fetch(`${BASE_URL}/user-preferences`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // adjust if needed
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch preferences");
+      }
+
+      const data = await response.json();
+
+      if (data.preferences) {
+        // Map backend preferences to state keys
+        const mappedSettings = {
+          locationTracking: false,
+          pushNotification: false,
+          autoSync: false,
+        };
+
+        data.preferences.forEach((pref) => {
+          const prefName = pref.preference.name.toLowerCase();
+
+          if (prefName === "location tracking") {
+            mappedSettings.locationTracking = pref.status;
+          }
+          if (prefName === "push notification") {
+            mappedSettings.pushNotification = pref.status;
+          }
+          if (prefName === "auto sync") {
+            mappedSettings.autoSync = pref.status;
+          }
+        });
+
+        setSettings(mappedSettings);
+      }
+    } catch (error) {
+      console.error("Error fetching preferences:", error);
+      Alert.alert("Error", "Unable to load preferences.");
+    }
+  };
+
+  // Fetch settings on component mount
+  useEffect(() => {
     fetchSettings();
+    console.log('Settings fetched:', settings);
   }, []);
 
   const CustomToggleSwitch = ({ isOn, onToggle }) => {
@@ -130,6 +216,7 @@ const ProfileScreen = () => {
     </View>
   );
 
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#111214" />
@@ -152,6 +239,15 @@ const ProfileScreen = () => {
             <TouchableOpacity style={styles.notification}>
               <Ionicons name="notifications" size={22} color="#fff" />
               <View style={styles.badge} />
+            </TouchableOpacity>
+
+            {/* Add Shift History Button */}
+            <TouchableOpacity
+              style={styles.historyButton}
+              onPress={() => navigation.navigate('ShiftHistory')}
+            >
+              <Ionicons name="time" size={22} color="#fff" />
+
             </TouchableOpacity>
           </View>
         </View>
@@ -178,7 +274,7 @@ const ProfileScreen = () => {
 
         <View style={styles.settingsContainer}>
           <Text style={styles.sectionTitle}>Settings</Text>
-          
+
           <View style={styles.settingItem}>
             <Text style={styles.settingLabel}>Location Tracking</Text>
             <CustomToggleSwitch
@@ -219,6 +315,7 @@ const ProfileScreen = () => {
             <MaterialIcons name="logout" size={20} color="#fff" />
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
+
         </View>
       </ScrollView>
 
@@ -315,6 +412,12 @@ const styles = StyleSheet.create({
   statValue: { fontSize: 20, fontWeight: 'bold' },
   // New
   notification: {
+    backgroundColor: '#888',
+    padding: 8,
+    borderRadius: 20,
+    position: 'relative',
+  },
+  historyButton: {
     backgroundColor: '#888',
     padding: 8,
     borderRadius: 20,

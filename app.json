@@ -30,6 +30,9 @@
       "eas": {
         "projectId": "e0043c67-2f98-4b09-a30a-300b3ba0406c"
       }
-    }
+    },
+    "plugins": [
+      "expo-maps"
+    ]
   }
 }
