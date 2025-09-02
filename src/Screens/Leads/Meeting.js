@@ -56,7 +56,7 @@ const MeetingTimerScreen = () => {
 
   const openStatusModal = () => setStatusModalVisible(true);
   const closeStatusModal = () => setStatusModalVisible(false);
-  
+
   const openPlanModal = () => setPlanModalVisible(true);
   const closePlanModal = () => setPlanModalVisible(false);
 
@@ -126,7 +126,7 @@ const MeetingTimerScreen = () => {
     }
   };
 
-    // Fetch meeting outcomes
+  // Fetch meeting outcomes
   const fetchPlanOutcomes = async () => {
     try {
       // token
@@ -140,7 +140,7 @@ const MeetingTimerScreen = () => {
         },
       });
       setPlansOptions(res.data.data);
-      console.log(res.data.data)      
+      console.log(res.data.data)
     } catch (err) {
       console.error('Failed to fetch plan outcomes', err);
     }
@@ -245,7 +245,7 @@ const MeetingTimerScreen = () => {
   const onChangeDate = (event, selectedDate) => {
     setShowDatePicker(false); // close after picking
     if (selectedDate) {
-      setNextFollowUpDate(selectedDate.toISOString().split("T")[0]); // format YYYY-MM-DD
+      setNextFollowUpDate(selectedDate); // keep Date object
     }
   };
 
@@ -272,10 +272,10 @@ const MeetingTimerScreen = () => {
         // If starting, kick off recorder first (so you don't miss initial seconds)
         if (endpoint === '/meetings/start') {
 
-          // Set meeting outcome, notes, and next follow up date for the meeting before 
-          let nextFollowUpDate = null;
-          let meetingOutcome = null;
-          let notes = null;
+          // // Set meeting outcome, notes, and next follow up date for the meeting before 
+          // let setNextFollowUpDate = null;
+          // let setMeetingOutcome = null;
+          // let setNotes = null;
 
           try {
             await startMeetingRecording();
@@ -293,8 +293,17 @@ const MeetingTimerScreen = () => {
         formData.append('selfie', { uri: selfieImage, type: 'image/jpeg', name: 'selfie.jpg' });
         formData.append('latitude', locationCoords.latitude);
         formData.append('longitude', locationCoords.longitude);
-        formData.append('plan_interest', selectedPlan.name);
-        formData.append('next_follow_up_date', nextFollowUpDate);
+
+
+        if (nextFollowUpDate) {
+          // Convert Date object to string
+          formData.append(
+            'next_follow_up_date',
+            nextFollowUpDate.toISOString().split("T")[0] // YYYY-MM-DD
+          );
+        } else {
+          // Do NOT append the field at all
+        }
 
         // If stopping, stop recorder and attach audio
         if (endpoint === '/meetings/end') {
@@ -307,7 +316,7 @@ const MeetingTimerScreen = () => {
           }
 
 
-          if (!nextFollowUpDate && selectedStatus.name !== 'Sold' ) {
+          if (!nextFollowUpDate && selectedStatus.name !== 'Sold') {
             Alert.alert('Error', 'Please set a next follow up date');
             setLoadingAction(false);
             return;
@@ -330,7 +339,8 @@ const MeetingTimerScreen = () => {
 
         if (endpoint === '/meetings/end') {
 
-
+          // Add plan interest
+          selectedPlan ? formData.append('plan_interest', selectedPlan.name) : null;
           // Add recording to form data
           recordingUri ? formData.append('recording', { uri: recordingUri, type: 'audio/m4a', name: 'meeting.m4a' }) : null;
           // Add notes to form data
@@ -464,255 +474,255 @@ const MeetingTimerScreen = () => {
 
 
       <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={80} // adjust if you have headers/navbars
-    >
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <ScrollView
-        // refreshControl={
-        //   // <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        // }
-        contentContainerStyle={{
-          paddingBottom: 80, // height of fixedActionBar
-        }}
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={80} // adjust if you have headers/navbars
       >
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <ScrollView
+            // refreshControl={
+            //   // <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            // }
+            contentContainerStyle={{
+              paddingBottom: 80, // height of fixedActionBar
+            }}
+          >
 
-        {/* Meeting Controls */}
-        {selectedLead?.id ? (
-          <View style={styles.meetingControls}>
-            {loadingAction ? (
-              <TouchableOpacity style={[styles.meetingControlButton, styles.loadingButton]}>
-                <Text style={styles.meetingControlButtonText}>Loading...</Text>
-                <MaterialIcons name="hourglass-empty" size={24} color="#fff" />
-              </TouchableOpacity>
-            ) : loadingAction === false && meetingActive ? (
-              <View style={{ flex: 1 }}>
+            {/* Meeting Controls */}
+            {selectedLead?.id ? (
+              <View style={styles.meetingControls}>
+                {loadingAction ? (
+                  <TouchableOpacity style={[styles.meetingControlButton, styles.loadingButton]}>
+                    <Text style={styles.meetingControlButtonText}>Loading...</Text>
+                    <MaterialIcons name="hourglass-empty" size={24} color="#fff" />
+                  </TouchableOpacity>
+                ) : loadingAction === false && meetingActive ? (
+                  <View style={{ flex: 1 }}>
 
-                {/* // If meeting is active, show the timer */}
-                <View>
+                    {/* // If meeting is active, show the timer */}
+                    <View>
 
-                  <View style={{ backgroundColor: '#fff', borderRadius: 15, padding: 20, }}>
+                      <View style={{ backgroundColor: '#fff', borderRadius: 15, padding: 20, }}>
 
-                    {/* Meeting Info */}
-                    <View style={styles.meetingInfo}>
-                      <View style={styles.meetingHeader}>
-                        <View>
-                          <Text style={styles.meetingName}>{selectedLead?.contact_person}</Text>
-                          <Text style={styles.meetingLocation}>At {selectedLead?.shop_name}</Text>
-                        </View>
-                        <View style={styles.recordingControls}>
+                        {/* Meeting Info */}
+                        <View style={styles.meetingInfo}>
+                          <View style={styles.meetingHeader}>
+                            <View>
+                              <Text style={styles.meetingName}>{selectedLead?.contact_person}</Text>
+                              <Text style={styles.meetingLocation}>At {selectedLead?.shop_name}</Text>
+                            </View>
+                            <View style={styles.recordingControls}>
 
-                          {/* Record Button */}
-                          <TouchableOpacity style={styles.recordButton}>
-                            <MaterialIcons name="mic" size={16} color="#ff9500" />
-                            <Text style={styles.recordText}>
-                              Recording...
-                              {/* {timerState === 'stopped' ? 'Not Started yet' :
+                              {/* Record Button */}
+                              <TouchableOpacity style={styles.recordButton}>
+                                <MaterialIcons name="mic" size={16} color="#ff9500" />
+                                <Text style={styles.recordText}>
+                                  Recording...
+                                  {/* {timerState === 'stopped' ? 'Not Started yet' :
                                 timerState === 'running' ? 'Recording...' : 'Paused'} */}
-                            </Text>
-                          </TouchableOpacity>
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
                         </View>
+
+                        {/* Timer Display */}
+                        <Text style={styles.timerDisplay}>{formatTime(time)}</Text>
+
+
+
                       </View>
+
+                      {/* Meeting Outcome */}
+                      <View style={{ marginTop: 20 }}>
+                        <Text style={styles.sectionTitle}>Meeting Outcome</Text>
+                        <TouchableOpacity style={styles.dropdown} onPress={openStatusModal}>
+                          <Text style={styles.dropdownText}> {selectedStatus?.name || 'Select Outcome'}</Text>
+                          <Ionicons name="chevron-down" size={20} color="#666" />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Meeting Outcome */}
+                      <View style={{ marginTop: 20 }}>
+                        <Text style={styles.sectionTitle}>Plan interested in</Text>
+                        <TouchableOpacity style={styles.dropdown} onPress={openPlanModal}>
+                          <Text style={styles.dropdownText}> {selectedPlan?.name || 'Select Plan'}</Text>
+                          <Ionicons name="chevron-down" size={20} color="#666" />
+                        </TouchableOpacity>
+                      </View>
+
+                      {/* Meeting Notes */}
+                      <View style={styles.notesSection}>
+                        <Text style={styles.sectionTitle}>Meeting Notes</Text>
+                        <TextInput
+                          style={styles.notesInput}
+                          placeholder="Add Notes during the meeting..."
+                          placeholderTextColor="#999"
+                          multiline
+                          value={notes}
+                          onChangeText={setNotes}
+                        />
+                      </View>
+
+                      {/* Next Follow Up Date */}
+                      {console.log("selectedStatus " + selectedStatus)}
+                      {selectedStatus?.name !== 'Sold' &&
+                        (
+                          <View style={{ marginVertical: 20 }}>
+                            <Text style={styles.sectionTitle}>Next Follow Up Date</Text>
+
+                            <TouchableOpacity
+                              style={styles.dropdown}
+                              onPress={() => setShowDatePicker(true)}
+                            >
+                              <Text style={{ color: nextFollowUpDate ? "#000" : "#999" }}>
+                                {nextFollowUpDate?.toISOString().split("T")[0] || "Select a date"}
+                              </Text>
+                              <Ionicons name="calendar-outline" size={20} color="#666" />
+                            </TouchableOpacity>
+
+                            {/* Date Picker */}
+                            {showDatePicker && (
+                              <DateTimePicker
+                                value={nextFollowUpDate || new Date()}
+                                mode="date"
+                                display={Platform.OS === "ios" ? "spinner" : "default"}
+                                onChange={onChangeDate}
+                              />
+                            )}
+                          </View>
+                        )
+                      }
+
+                      <TouchableOpacity
+                        style={[styles.meetingControlButton, styles.meetingControlButtonStop, { marginBottom: 20 }]}
+                        onPress={() => sendMeetingAction('/meetings/end', 'end')}
+                      >
+                        <Text style={styles.meetingControlButtonText}>Stop Meeting</Text>
+                        <MaterialIcons name="stop" size={24} color="#fff" />
+                      </TouchableOpacity>
+
                     </View>
-
-                    {/* Timer Display */}
-                    <Text style={styles.timerDisplay}>{formatTime(time)}</Text>
-
-
-
                   </View>
 
-                  {/* Meeting Outcome */}
-                  <View style={{ marginTop: 20 }}>
-                    <Text style={styles.sectionTitle}>Meeting Outcome</Text>
-                    <TouchableOpacity style={styles.dropdown} onPress={openStatusModal}>
-                      <Text style={styles.dropdownText}> {selectedStatus?.name || 'Select Outcome'}</Text>
-                      <Ionicons name="chevron-down" size={20} color="#666" />
+                ) : (
+                  <TouchableOpacity
+                    style={[styles.meetingControlButton, styles.meetingControlButtonStart]}
+                    onPress={() => sendMeetingAction('/meetings/start', 'start')}
+                  >
+                    <Text style={styles.meetingControlButtonText}>Start Meeting</Text>
+                    <MaterialIcons name="play-arrow" size={24} color="#fff" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )
+              :
+              (
+                <View style={[styles.container, { paddingHorizontal: 20, marginBottom: 20 }]}>
+                  <View style={styles.photoOption} >
+                    <Ionicons name="people-outline" size={50} color="#ccc" />
+                    <Text style={[styles.sectionTitle, { textAlign: 'center', marginTop: 20, color: '#666' }]}>
+                      Please select a lead to start the meeting.
+                    </Text>
+                  </View>
+                </View>
+              )
+            }
+
+            {/* Select Lead Modal */}
+            <Modal
+              animationType="slide"
+              transparent={true}
+              visible={modalVisible}
+              onRequestClose={() => setModalVisible(false)}
+            >
+              <View style={styles.leadModalOverlay}>
+                <View style={styles.leadModalContent}>
+                  <Text style={styles.leadTitle}>Select Leads</Text>
+
+                  <ScrollView>
+                    {/* Scrollable Leads List */}
+                    {leads.map((lead, index) => (
+                      <TouchableOpacity
+                        key={index}
+                        title={lead.contact_person}
+                        onPress={() => {
+                          // Navigate to ShowLead screen with lead details
+                          setSelectedLead(lead);
+                          setModalVisible(false);
+                        }}
+                      >
+                        <View style={styles.scheduleItem}>
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.scheduleName}>{lead.contact_person}</Text>
+                            <Text style={styles.scheduleLocation}>{lead.shop_name}</Text>
+                          </View>
+                          <Text style={styles.scheduleTime}>
+                            {lead.next_follow_up_date || 'No date'}
+                          </Text>
+                          <View
+                            style={[
+                              styles.statusTag,
+                              lead.lead_status_data?.name == 'Sold'
+                                ? styles.statusOngoing
+                                : styles.statusStart,
+                            ]}
+                          >
+                            <Text style={styles.statusText}>
+                              {lead.lead_status_data?.name || 'Pending'}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+
+                  {/* Pagination Controls */}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => fetchLeads(pagination.current_page - 1)}
+                      disabled={pagination.current_page <= 1}
+                      style={{ opacity: pagination.current_page <= 1 ? 0.5 : 1 }}
+                    >
+                      <Text style={{ color: '#007bff' }}>Previous</Text>
                     </TouchableOpacity>
-                  </View>
 
-                  {/* Meeting Outcome */}
-                  <View style={{ marginTop: 20 }}>
-                    <Text style={styles.sectionTitle}>Plan interested in</Text>
-                    <TouchableOpacity style={styles.dropdown} onPress={openPlanModal}>
-                      <Text style={styles.dropdownText}> {selectedPlan?.name || 'Select Plan'}</Text>
-                      <Ionicons name="chevron-down" size={20} color="#666" />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Meeting Notes */}
-                  <View style={styles.notesSection}>
-                    <Text style={styles.sectionTitle}>Meeting Notes</Text>
-                    <TextInput
-                      style={styles.notesInput}
-                      placeholder="Add Notes during the meeting..."
-                      placeholderTextColor="#999"
-                      multiline
-                      value={notes}
-                      onChangeText={setNotes}
-                    />
-                  </View>
-
-                  {/* Next Follow Up Date */}
-                  {console.log("selectedStatus " + selectedStatus)}
-                  {selectedStatus?.name !== 'Sold' &&
-                  (
-                  <View style={{ marginVertical: 20 }}>
-                    <Text style={styles.sectionTitle}>Next Follow Up Date</Text>
+                    <Text>
+                      Page {pagination.current_page} of {pagination.last_page}
+                    </Text>
 
                     <TouchableOpacity
-                      style={styles.dropdown}
-                      onPress={() => setShowDatePicker(true)}
+                      onPress={() => fetchLeads(pagination.current_page + 1)}
+                      disabled={pagination.current_page >= pagination.last_page}
+                      style={{ opacity: pagination.current_page >= pagination.last_page ? 0.5 : 1 }}
                     >
-                      <Text style={{ color: nextFollowUpDate ? "#000" : "#999" }}>
-                        {nextFollowUpDate || "Select a date"}
-                      </Text>
-                      <Ionicons name="calendar-outline" size={20} color="#666" />
+                      <Text style={{ color: '#007bff' }}>Next</Text>
                     </TouchableOpacity>
-
-                    {/* Date Picker */}
-                    {showDatePicker && (
-                      <DateTimePicker
-                        value={nextFollowUpDate ? new Date(nextFollowUpDate) : new Date()}
-                        mode="date"
-                        display={Platform.OS === "ios" ? "spinner" : "default"}
-                        onChange={onChangeDate}
-                      />
-                    )}
                   </View>
-                  )
-                  }
 
                   <TouchableOpacity
-                    style={[styles.meetingControlButton, styles.meetingControlButtonStop, { marginBottom: 20 }]}
-                    onPress={() => sendMeetingAction('/meetings/end', 'end')}
+                    style={[styles.modalButton, styles.stopButton]}
+                    onPress={() => setModalVisible(false)}
                   >
-                    <Text style={styles.meetingControlButtonText}>Stop Meeting</Text>
-                    <MaterialIcons name="stop" size={24} color="#fff" />
+                    <Text style={styles.stopButtonText}>Cancel</Text>
                   </TouchableOpacity>
-
                 </View>
               </View>
+            </Modal>
 
-            ) : (
-              <TouchableOpacity
-                style={[styles.meetingControlButton, styles.meetingControlButtonStart]}
-                onPress={() => sendMeetingAction('/meetings/start', 'start')}
-              >
-                <Text style={styles.meetingControlButtonText}>Start Meeting</Text>
-                <MaterialIcons name="play-arrow" size={24} color="#fff" />
-              </TouchableOpacity>
-            )}
-          </View>
-        )
-          :
-          (
-            <View style={[styles.container, { paddingHorizontal: 20, marginBottom: 20 }]}>
-              <View style={styles.photoOption} >
-                <Ionicons name="people-outline" size={50} color="#ccc" />
-                <Text style={[styles.sectionTitle, { textAlign: 'center', marginTop: 20, color: '#666' }]}>
-                  Please select a lead to start the meeting.
-                </Text>
-              </View>
-            </View>
-          )
-        }
+            {/* Meeting Outcome Modal */}
+            <Modal
+              animationType="slide"
+              transparent={true}
+              visible={statusModalVisible}
+              onRequestClose={closeStatusModal}
+            >
+              <View style={styles.leadModalOverlay}>
+                <View style={styles.leadModalContent}>
+                  <Text style={styles.leadTitle}>Select Status</Text>
 
-        {/* Select Lead Modal */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={modalVisible}
-          onRequestClose={() => setModalVisible(false)}
-        >
-          <View style={styles.leadModalOverlay}>
-            <View style={styles.leadModalContent}>
-              <Text style={styles.leadTitle}>Select Leads</Text>
-
-              <ScrollView>
-                {/* Scrollable Leads List */}
-                {leads.map((lead, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    title={lead.contact_person}
-                    onPress={() => {
-                      // Navigate to ShowLead screen with lead details
-                      setSelectedLead(lead);
-                      setModalVisible(false);
-                    }}
-                  >
-                    <View style={styles.scheduleItem}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.scheduleName}>{lead.contact_person}</Text>
-                        <Text style={styles.scheduleLocation}>{lead.shop_name}</Text>
-                      </View>
-                      <Text style={styles.scheduleTime}>
-                        {lead.next_follow_up_date || 'No date'}
-                      </Text>
-                      <View
-                        style={[
-                          styles.statusTag,
-                          lead.lead_status_data?.name == 'Sold'
-                            ? styles.statusOngoing
-                            : styles.statusStart,
-                        ]}
-                      >
-                        <Text style={styles.statusText}>
-                          {lead.lead_status_data?.name || 'Pending'}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              {/* Pagination Controls */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginVertical: 10 }}>
-                <TouchableOpacity
-                  onPress={() => fetchLeads(pagination.current_page - 1)}
-                  disabled={pagination.current_page <= 1}
-                  style={{ opacity: pagination.current_page <= 1 ? 0.5 : 1 }}
-                >
-                  <Text style={{ color: '#007bff' }}>Previous</Text>
-                </TouchableOpacity>
-
-                <Text>
-                  Page {pagination.current_page} of {pagination.last_page}
-                </Text>
-
-                <TouchableOpacity
-                  onPress={() => fetchLeads(pagination.current_page + 1)}
-                  disabled={pagination.current_page >= pagination.last_page}
-                  style={{ opacity: pagination.current_page >= pagination.last_page ? 0.5 : 1 }}
-                >
-                  <Text style={{ color: '#007bff' }}>Next</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={[styles.modalButton, styles.stopButton]}
-                onPress={() => setModalVisible(false)}
-              >
-                <Text style={styles.stopButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
-
-        {/* Meeting Outcome Modal */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={statusModalVisible}
-          onRequestClose={closeStatusModal}
-        >
-          <View style={styles.leadModalOverlay}>
-            <View style={styles.leadModalContent}>
-              <Text style={styles.leadTitle}>Select Status</Text>
-
-              {/* Search input (optional) */}
-              {/* <View style={{ marginBottom: 10 }}>
+                  {/* Search input (optional) */}
+                  {/* <View style={{ marginBottom: 10 }}>
                 <TextInput
                   placeholder="Search status..."
                   value={statusSearch}
@@ -727,117 +737,117 @@ const MeetingTimerScreen = () => {
                 />
               </View> */}
 
-              <ScrollView keyboardShouldPersistTaps="handled">
-                {meetingOutcomeOptions.map((status) => {
-                  const isSelected = selectedStatus?.id === status.id;
-                  return (
-                    <TouchableOpacity
-                      key={status.id}
-                      onPress={() => onPickStatus(status)}
-                    >
-                      <View style={[
-                        styles.scheduleItem,
-                        { alignItems: 'center', paddingVertical: 12 }
-                      ]}>
-                        <Text style={[
-                          styles.scheduleName,
-                          { flex: 1 }
-                        ]}>
-                          {status?.name}
-                        </Text>
+                  <ScrollView keyboardShouldPersistTaps="handled">
+                    {meetingOutcomeOptions.map((status) => {
+                      const isSelected = selectedStatus?.id === status.id;
+                      return (
+                        <TouchableOpacity
+                          key={status.id}
+                          onPress={() => onPickStatus(status)}
+                        >
+                          <View style={[
+                            styles.scheduleItem,
+                            { alignItems: 'center', paddingVertical: 12 }
+                          ]}>
+                            <Text style={[
+                              styles.scheduleName,
+                              { flex: 1 }
+                            ]}>
+                              {status?.name}
+                            </Text>
 
-                        {/* radio / check indicator */}
-                        <View style={[
-                          {
-                            width: 22, height: 22, borderRadius: 11,
-                            borderWidth: 2, borderColor: isSelected ? '#4CAF50' : '#bbb',
-                            alignItems: 'center', justifyContent: 'center',
-                          }
-                        ]}>
-                          {isSelected ? (
-                            <View style={{
-                              width: 12, height: 12, borderRadius: 6, backgroundColor: '#4CAF50'
-                            }} />
-                          ) : null}
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                            {/* radio / check indicator */}
+                            <View style={[
+                              {
+                                width: 22, height: 22, borderRadius: 11,
+                                borderWidth: 2, borderColor: isSelected ? '#4CAF50' : '#bbb',
+                                alignItems: 'center', justifyContent: 'center',
+                              }
+                            ]}>
+                              {isSelected ? (
+                                <View style={{
+                                  width: 12, height: 12, borderRadius: 6, backgroundColor: '#4CAF50'
+                                }} />
+                              ) : null}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
 
-              <TouchableOpacity
-                style={[styles.modalButton, styles.stopButton]}
-                onPress={closeStatusModal}
-              >
-                <Text style={styles.stopButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.stopButton]}
+                    onPress={closeStatusModal}
+                  >
+                    <Text style={styles.stopButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
 
 
-        {/* Plan Modal */}
-        <Modal
-          animationType="slide"
-          transparent={true}
-          visible={planModalVisible}
-          onRequestClose={closePlanModal}
-        >
-          <View style={styles.leadModalOverlay}>
-            <View style={styles.leadModalContent}>
-              <Text style={styles.leadTitle}>Select Plan</Text>              
+            {/* Plan Modal */}
+            <Modal
+              animationType="slide"
+              transparent={true}
+              visible={planModalVisible}
+              onRequestClose={closePlanModal}
+            >
+              <View style={styles.leadModalOverlay}>
+                <View style={styles.leadModalContent}>
+                  <Text style={styles.leadTitle}>Select Plan</Text>
 
-              <ScrollView keyboardShouldPersistTaps="handled">
-                {plansOptions.map((plan) => {
-                  const isSelected = selectedPlan?.id === plan.id;
-                  return (
-                    <TouchableOpacity
-                      key={plan.id}
-                      onPress={() => onPickPlan(plan)}
-                    >
-                      <View style={[
-                        styles.scheduleItem,
-                        { alignItems: 'center', paddingVertical: 12 }
-                      ]}>
-                        <Text style={[
-                          styles.scheduleName,
-                          { flex: 1 }
-                        ]}>
-                          {plan?.name}
-                        </Text>
-                        
-                        <View style={[
-                          {
-                            width: 22, height: 22, borderRadius: 11,
-                            borderWidth: 2, borderColor: isSelected ? '#4CAF50' : '#bbb',
-                            alignItems: 'center', justifyContent: 'center',
-                          }
-                        ]}>
-                          {isSelected ? (
-                            <View style={{
-                              width: 12, height: 12, borderRadius: 6, backgroundColor: '#4CAF50'
-                            }} />
-                          ) : null}
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                  <ScrollView keyboardShouldPersistTaps="handled">
+                    {plansOptions.map((plan) => {
+                      const isSelected = selectedPlan?.id === plan.id;
+                      return (
+                        <TouchableOpacity
+                          key={plan.id}
+                          onPress={() => onPickPlan(plan)}
+                        >
+                          <View style={[
+                            styles.scheduleItem,
+                            { alignItems: 'center', paddingVertical: 12 }
+                          ]}>
+                            <Text style={[
+                              styles.scheduleName,
+                              { flex: 1 }
+                            ]}>
+                              {plan?.name}
+                            </Text>
 
-              <TouchableOpacity
-                style={[styles.modalButton, styles.stopButton]}
-                onPress={closeStatusModal}
-              >
-                <Text style={styles.stopButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
+                            <View style={[
+                              {
+                                width: 22, height: 22, borderRadius: 11,
+                                borderWidth: 2, borderColor: isSelected ? '#4CAF50' : '#bbb',
+                                alignItems: 'center', justifyContent: 'center',
+                              }
+                            ]}>
+                              {isSelected ? (
+                                <View style={{
+                                  width: 12, height: 12, borderRadius: 6, backgroundColor: '#4CAF50'
+                                }} />
+                              ) : null}
+                            </View>
+                          </View>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
 
-      </ScrollView>
-      </TouchableWithoutFeedback>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.stopButton]}
+                    onPress={closeStatusModal}
+                  >
+                    <Text style={styles.stopButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </Modal>
+
+          </ScrollView>
+        </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
 
     </SafeAreaView>
