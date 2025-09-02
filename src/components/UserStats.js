@@ -1,17 +1,19 @@
 // components/userStats.js
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
-import { View, Button, Text, StyleSheet, } from "react-native";
+import { View, Button, Text, StyleSheet, TouchableOpacity } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import axios from 'axios';
 import BASE_URL from '../config';
+import { useNavigation } from '@react-navigation/native';
 
 
 export default function UserStats() {
 
     // Auth Context
     const { user, logout } = useAuth();
+    const navigation = useNavigation();
 
     // Stats State
     const [stats, setStats] = useState(null);
@@ -42,6 +44,22 @@ export default function UserStats() {
         fetchStats();
     }, []);
 
+    // Navigation handler - same logic as HomeScreen
+    function handleNavigation(title) {
+        let tab;
+        if (title == 'total leads') {
+            tab = 'all'
+        }
+        else if (title == 'sold') {
+            tab = 'sold'
+        }
+        else {
+            tab = 'today'
+        }
+        if (title == 'target') navigation.navigate('Reports')
+        else navigation.navigate('leadlist', { tab: tab })
+    }
+
 
     return (
         <>
@@ -51,13 +69,13 @@ export default function UserStats() {
             {/* Stats */}
             <View style={styles.statsGrid}>
                 {stats && Object.entries(stats).map(([title, stat], index) => (
-                    <View key={index} style={styles.statCard}>
+                    <TouchableOpacity onPress={() => handleNavigation(title)} key={index} style={styles.statCard}>
                         <View style={styles.statValueContainer}>
                             <Text style={styles.statLabel}>{title}</Text>
                             <MaterialIcons name="calendar-today" size={18} color="#f97316" />
                         </View>
                         <Text style={styles.statValue}>{title == 'target' ? stats['sold'] + ' /' : ''} {stat}</Text>
-                    </View>
+                    </TouchableOpacity>
                 ))}
             </View>
         </>

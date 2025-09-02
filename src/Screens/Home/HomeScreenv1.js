@@ -217,6 +217,7 @@ export default function HomeScreen({navigation}) {
   // Fetch stats on component mount
   useEffect(() => {
     fetchStats();
+  
   }, []);
 
   const fetchLeads = async (page = 1) => {
@@ -236,6 +237,11 @@ export default function HomeScreen({navigation}) {
   useEffect(() => {
     fetchLeads();
   }, []);
+
+
+function handleNavigation(){
+  navigation.navigate('leadlist')
+}
 
   return (
     <View style={{ flex: 1 }}>
@@ -361,13 +367,13 @@ export default function HomeScreen({navigation}) {
           {/* Stats */}
           <View style={styles.statsGrid}>
             {stats && Object.entries(stats).map(([title, stat], index) => (
-              <View key={index} style={styles.statCard}>
+              <TouchableOpacity onPress={()=>handleNavigation()} key={index} style={styles.statCard}>
                 <View style={styles.statValueContainer}>
                   <Text style={styles.statLabel}>{title}</Text>
                   <MaterialIcons name="calendar-today" size={18} color="#f97316" />
                 </View>
                 <Text style={styles.statValue}>{title == 'target' ? stats['sold'] + ' /' : ''} {stat}</Text>
-              </View>
+              </TouchableOpacity>
             ))}
           </View>
 
@@ -513,10 +519,11 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '47%',
-    backgroundColor: '#f9fafb',
     borderRadius: 12,
     padding: 12,
     marginBottom: 12,
+    backgroundColor: 'red'
+
   },
   statLabel: { color: '#888', marginBottom: 6, textTransform: 'capitalize' },
   statValueContainer: {

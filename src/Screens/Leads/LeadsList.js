@@ -18,6 +18,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { colors } from '../../../theme/colors';
 import BASE_URL from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { set } from 'date-fns';
 
 const TABS = [
   { key: 'all', label: 'All', count: 0 },
@@ -67,10 +68,12 @@ const mapLead = (l) => ({
 });
 
 // ---- component -----------------------------------------------------------
-export default function LeadsList({ navigation }) {
-  const [query, setQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('all');
+export default function LeadsList(props) {
+  const { navigation, route } = props;
 
+  const [query, setQuery] = useState('');
+  const tab = route?.params?.tab || 'all';
+  const [activeTab, setActiveTab] = useState(tab);
   const [items, setItems] = useState([]);            // mapped UI items
   const [pagination, setPagination] = useState({
     current_page: 1,
@@ -89,9 +92,15 @@ export default function LeadsList({ navigation }) {
   const [showDateFilter, setShowDateFilter] = useState(false);
 
   const debounced = useRef(null);
+  const isInitialMount = useRef(true);
 
   // Debounced search effect
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     if (debounced.current) {
       clearTimeout(debounced.current);
     }
