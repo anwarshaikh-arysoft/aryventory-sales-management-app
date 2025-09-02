@@ -18,7 +18,6 @@ import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 import { useEffect, useState, useCallback } from 'react';
 
-
 // Media and location capturing components
 import { takeSelfie } from '../../utils/TakeSelfie';
 import { captureLocation } from '../../utils/LocationCapture';
@@ -27,8 +26,6 @@ import { captureLocation } from '../../utils/LocationCapture';
 import { getLeadsByFollowUpDate } from '../../utils/getLeadsByFollowUpDate';
 // Import BASE_URL from '../../config';
 import BASE_URL from '../../config';
-
-
 
 export default function HomeScreen({ navigation }) {
 
@@ -266,10 +263,10 @@ export default function HomeScreen({ navigation }) {
               </View>
             </View>
             <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-              <TouchableOpacity style={styles.notification}>
+              {/* <TouchableOpacity style={styles.notification}>
                 <Ionicons name="notifications" size={22} color="#fff" />
                 <View style={styles.badge} />
-              </TouchableOpacity>
+              </TouchableOpacity> */}
 
               {/* Add Shift History Button */}
               <TouchableOpacity
@@ -369,6 +366,7 @@ export default function HomeScreen({ navigation }) {
           {/* Stats */}
           <View style={styles.statsGrid}>
             {stats && Object.entries(stats).map(([title, stat], index) => (
+              
               <View key={index} style={styles.statCard}>
                 <View style={styles.statValueContainer}>
                   <Text style={styles.statLabel}>{title}</Text>
@@ -376,6 +374,7 @@ export default function HomeScreen({ navigation }) {
                 </View>
                 <Text style={styles.statValue}>{title == 'target' ? stats['sold'] + ' /' : ''} {stat}</Text>
               </View>
+              
             ))}
           </View>
 
@@ -383,9 +382,14 @@ export default function HomeScreen({ navigation }) {
 
           <View>
             {/* Follow-up Leads */}
-            <View style={[styles.recentActivityHeader, {justifyContent: 'flex-start', gap: 10,}]}>
-              <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
-              <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{leads.length}</Text>
+            <View style={[styles.recentActivityHeader]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, }}>
+                <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
+                <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{leads.length}</Text>
+              </View>
+              <TouchableOpacity style={{ backgroundColor: '#dbeafe', padding: 8, borderRadius: 12, }} onPress={() => navigation.navigate('leadlist')}>
+                <Text style={{ color: '#2563eb', fontWeight: 'bold' }}>View All</Text>
+              </TouchableOpacity>
             </View>
 
             {loading ? (
@@ -412,13 +416,13 @@ export default function HomeScreen({ navigation }) {
                       <View
                         style={[
                           styles.statusTag,
-                          lead.lead_status_data.name == 'Sold'
+                          lead.lead_status_data?.name == 'Sold'
                             ? styles.statusOngoing
                             : styles.statusStart,
                         ]}
                       >
                         <Text style={styles.statusText}>
-                          {lead.lead_status_data.name || 'Pending'}
+                          {lead.lead_status_data?.name || 'Pending'}
                         </Text>
                       </View>
                     </View>
@@ -426,13 +430,16 @@ export default function HomeScreen({ navigation }) {
                 ))}
 
                 {/* Pagination Controls */}
-                <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 }}>
+                <View style={styles.paginationContainer}>
                   <TouchableOpacity
                     onPress={() => fetchLeads(pagination.current_page - 1)}
                     disabled={pagination.current_page <= 1}
-                    style={{ opacity: pagination.current_page <= 1 ? 0.5 : 1 }}
+                    style={[
+                      styles.paginationButton,
+                      { opacity: pagination.current_page <= 1 ? 0.5 : 1 }
+                    ]}
                   >
-                    <Text style={{ color: '#007bff' }}>Previous</Text>
+                    <Text style={styles.paginationButtonText}>Previous</Text>
                   </TouchableOpacity>
 
                   <Text>
@@ -442,9 +449,11 @@ export default function HomeScreen({ navigation }) {
                   <TouchableOpacity
                     onPress={() => fetchLeads(pagination.current_page + 1)}
                     disabled={pagination.current_page >= pagination.last_page}
-                    style={{ opacity: pagination.current_page >= pagination.last_page ? 0.5 : 1 }}
+                    style={[styles.paginationButton,                      
+                      { opacity: pagination.current_page >= pagination.last_page ? 0.5 : 1 }
+                    ]}
                   >
-                    <Text style={{ color: '#007bff' }}>Next</Text>
+                    <Text style={styles.paginationButtonText}>Next</Text>
                   </TouchableOpacity>
                 </View>
               </>
@@ -529,6 +538,47 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
 
+  // Pagination styles
+  paginationContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 20,
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+  },
+  paginationButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#007bff',
+    minWidth: 80,
+    alignItems: 'center',
+  },
+  paginationButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  paginationInfo: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  paginationText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  paginationSubtext: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
+  },
+
   // Current Shift Status Card
   currentShiftCard: {
     backgroundColor: '#f0f9ff',
@@ -604,8 +654,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    marginTop: 16,
-    marginBottom: 8,
   },
 
   scheduleItem: {
@@ -634,7 +682,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginTop: 16,
   },
-  
+
   addLeadButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -662,6 +710,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 10,
     marginTop: 24,
     marginBottom: 8,
   },

@@ -25,7 +25,7 @@ export default function ShowLead() {
                 <View style={styles.header}>
                     <Text style={styles.shopName}>{lead.shop_name}</Text>
                     <View style={styles.statusBadge}>
-                        <Text style={styles.statusText}>{lead.lead_status_data.name}</Text>
+                        <Text style={styles.statusText}>{lead.lead_status_data?.name}</Text>
                     </View>
                 </View>
 
@@ -88,25 +88,35 @@ export default function ShowLead() {
                     </TouchableOpacity>
                 </View>
             </View>
+
+            {/* All Leads */}
+            <TouchableOpacity
+                style={{ marginTop: 20, alignItems: 'center' }}
+                onPress={() => navigation.navigate('leadlist')}
+            >
+                <Text style={{ color: '#3B82F6', fontSize: 16 }}>View All Leads</Text>
+            </TouchableOpacity>
         </ScrollView>
     );
 }
+
 
 const styles = StyleSheet.create({
     container: {
         padding: 16,
         backgroundColor: '#F6F6F6',
-        flexGrow: 1,                
+        flexGrow: 1,
     },
     card: {
         backgroundColor: '#fff',
         borderRadius: 12,
         padding: 16,
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowOffset: { width: 0, height: 1 },
-        shadowRadius: 5,
-        elevation: 1,
+        borderWidth: 1,
+        borderColor: '#EFEFEF',
+        // shadowColor: '#000',
+        // shadowOpacity: 0.1,
+        // shadowOffset: { width: 0, height: 1 },
+        // shadowRadius: 5,
     },
     header: {
         flexDirection: 'row',

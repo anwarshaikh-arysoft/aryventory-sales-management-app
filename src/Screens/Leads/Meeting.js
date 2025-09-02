@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -10,18 +10,91 @@ import {
   FlatList,
   StatusBar,
   ScrollView,
+  Image,
+  Alert,
+  Platform,
+  TouchableWithoutFeedback,
+  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { getLeadsByFollowUpDate } from '../../utils/getLeadsByFollowUpDate';
-import ModalSelector from 'react-native-modal-selector';
 import { ArrowRight, Icon, Camera } from 'lucide-react-native';
+import { takeSelfie } from '../../utils/TakeSelfie';
+import { startMeetingRecording, stopMeetingRecording, buildAudioFormPart, getRecordingStatus } from '../../utils/voiceRecording';
+import { captureLocation } from '../../utils/LocationCapture';
+import { useRoute } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import BASE_URL from '../../config';
+import DateTimePicker from "@react-native-community/datetimepicker";
 
 const MeetingTimerScreen = () => {
+
   const [timerState, setTimerState] = useState('stopped'); // 'stopped', 'running', 'paused'
   const [time, setTime] = useState(0); // time in seconds
+  const timerIdRef = useRef(null);     // holds setInterval id
+  const startMsRef = useRef(null);     // stores the meeting start timestamp (ms) 
+
+  // Meeting Controls
   const [showStopConfirmation, setShowStopConfirmation] = useState(false);
   const [notes, setNotes] = useState('');
   const intervalRef = useRef(null);
+  const [selfieUri, setSelfieUri] = useState(null);
+  const [shopPhotoUri, setShopPhotoUri] = useState(null);
+
+  const [statusModalVisible, setStatusModalVisible] = useState(false);
+  const [selectedStatus, setSelectedStatus] = useState(null); // { id, name }
+  const [statusSearch, setStatusSearch] = useState('');
+
+  const filteredStatuses = useMemo(() => {
+    if (!Array.isArray(meetingOutcomeOptions)) return [];
+    if (!statusSearch.trim()) return meetingOutcomeOptions;
+    const q = statusSearch.toLowerCase();
+    return meetingOutcomeOptions.filter(s => (s.name || '').toLowerCase().includes(q));
+  }, [meetingOutcomeOptions, statusSearch]);
+
+  const openStatusModal = () => setStatusModalVisible(true);
+  const closeStatusModal = () => setStatusModalVisible(false);
+  
+  const openPlanModal = () => setPlanModalVisible(true);
+  const closePlanModal = () => setPlanModalVisible(false);
+
+  const onPickStatus = (status) => {
+    setSelectedStatus(status);    // store the object; or store status.id if you prefer
+    setStatusModalVisible(false);
+    // if you also keep `meetingOutcome` for your form submission, set it here:
+    // setMeetingOutcome(status.id);
+  };
+
+  const onPickPlan = (plan) => {
+    setSelectedPlan(plan);    // store the object; or store status.id if you prefer
+    setPlanModalVisible(false);
+    // if you also keep `meetingOutcome` for your form submission, set it here:
+    // setMeetingOutcome(status.id);
+  };
+
+  // Meeting States
+  const [loadingAction, setLoadingAction] = useState(null);
+  const [meetingActive, setMeetingActive] = useState(false);
+  const [meetingStartTime, setMeetingStartTime] = useState(null);
+  const [meetingElapsed, setMeetingElapsed] = useState(0);
+  const [nextFollowUpDate, setNextFollowUpDate] = useState(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  // Meeting Outcome
+  const [meetingOutcome, setMeetingOutcome] = useState(null);
+  const [meetingOutcomeOptions, setMeetingOutcomeOptions] = useState([]);
+
+  // Plans State
+  const [plansOptions, setPlansOptions] = useState([]);
+  const [planInterest, setPlanInterest] = useState(null);
+  const [planModalVisible, setPlanModalVisible] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState(null); // { id, name }
+
+
+  // Meeting Recording
+  const [recordingUri, setRecordingUri] = useState(null);
 
   // Leads
   const [leads, setLeads] = useState([]);
@@ -30,6 +103,63 @@ const MeetingTimerScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
 
   const [selectedLead, setSelectedLead] = useState(null);
+
+  // Navigation
+  const route = useRoute();
+
+  // Fetch meeting outcomes
+  const fetchMeetingOutcomes = async () => {
+    try {
+      // token
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return Alert.alert('Error', 'No token found');
+
+      // headers
+      const res = await axios.get(`${BASE_URL}/lead-statuses/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setMeetingOutcomeOptions(res.data.data);
+    } catch (err) {
+      console.error('Failed to fetch meeting outcomes', err);
+    }
+  };
+
+    // Fetch meeting outcomes
+  const fetchPlanOutcomes = async () => {
+    try {
+      // token
+      const token = await AsyncStorage.getItem('token');
+      if (!token) return Alert.alert('Error', 'No token found');
+
+      // headers
+      const res = await axios.get(`${BASE_URL}/plans/`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      setPlansOptions(res.data.data);
+      console.log(res.data.data)      
+    } catch (err) {
+      console.error('Failed to fetch plan outcomes', err);
+    }
+  };
+
+  // On mount
+  useEffect(() => {
+    fetchMeetingOutcomes();
+    fetchPlanOutcomes();
+
+  }, []);
+
+
+  // If lead is passed as a parameter, set it as the selected lead
+  useEffect(() => {
+    if (route.params && route.params.lead) {
+      setSelectedLead(route.params.lead);
+    }
+  }, []);
 
   // Format time to HH:MM:SS
   const formatTime = (seconds) => {
@@ -59,48 +189,245 @@ const MeetingTimerScreen = () => {
     fetchLeads();
   }, []);
 
-  // Start timer
-  const startTimer = () => {
-    setTimerState('running');
-    intervalRef.current = setInterval(() => {
-      setTime(prevTime => prevTime + 1);
-    }, 1000);
+
+
+  // Take selfie function
+  const handleTakeSelfie = async (setfor) => {
+    const selfieUri = await takeSelfie();
+    if (selfieUri) {
+      console.log('Selfie taken:', selfieUri);
+      if (setfor === 'selfie') {
+        setSelfieUri(selfieUri);
+      } else if (setfor === 'shop') {
+        setShopPhotoUri(selfieUri);
+      }
+    } else {
+      console.log('Selfie not taken');
+    }
   };
 
-  // Pause timer
+
+  // Start Timer
+  const startTimer = (startAt) => {
+    if (!startAt) return;                  // need a start time
+    const startMs = typeof startAt === 'number' ? startAt : new Date(startAt).getTime();
+    startMsRef.current = startMs;          // (re)set base start time
+
+    // clear any previous interval to avoid duplicates
+    if (timerIdRef.current) clearInterval(timerIdRef.current);
+
+    const tick = () => setTime(Math.floor((Date.now() - startMsRef.current) / 1000));
+    tick();                                 // immediate update
+    timerIdRef.current = setInterval(tick, 1000);
+  };
+
+  // Pause Timer
   const pauseTimer = () => {
-    setTimerState('paused');
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
+    if (timerIdRef.current) {
+      clearInterval(timerIdRef.current);
+      timerIdRef.current = null;
     }
   };
 
-  // Resume timer
-  const resumeTimer = () => {
-    startTimer();
-  };
-
-  // Stop timer with confirmation
-  const handleStopPress = () => {
-    setShowStopConfirmation(true);
-  };
-
-  // Confirm stop
-  const confirmStop = () => {
-    setTimerState('stopped');
+  // Reset Timer
+  const resetTimer = () => {
+    pauseTimer();
+    startMsRef.current = null;
     setTime(0);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setShowStopConfirmation(false);
   };
 
-  // Cancel stop
-  const cancelStop = () => {
-    setShowStopConfirmation(false);
+  // Make sure we don't leave an interval running after unmount
+  useEffect(() => {
+    return () => pauseTimer();
+  }, []);
+
+  // Follow Up Date Picker
+  const onChangeDate = (event, selectedDate) => {
+    setShowDatePicker(false); // close after picking
+    if (selectedDate) {
+      setNextFollowUpDate(selectedDate.toISOString().split("T")[0]); // format YYYY-MM-DD
+    }
   };
+
+  // Send shift actions
+  const sendMeetingAction = async (endpoint, actionKey) => {
+    console.log('Sending meeting action:', endpoint, actionKey);
+    setLoadingAction(true);
+
+    let selfieImage = null;
+    let locationCoords = null;
+
+    try {
+      if (endpoint === '/meetings/start' || endpoint === '/meetings/end') {
+
+        // Capture selfie and location
+        selfieImage = await takeSelfie();
+        locationCoords = await captureLocation();
+
+        if (!selfieImage || !locationCoords) {
+          Alert.alert("Error", "Please capture selfie and location");
+          return;
+        }
+
+        // If starting, kick off recorder first (so you don't miss initial seconds)
+        if (endpoint === '/meetings/start') {
+
+          // Set meeting outcome, notes, and next follow up date for the meeting before 
+          let nextFollowUpDate = null;
+          let meetingOutcome = null;
+          let notes = null;
+
+          try {
+            await startMeetingRecording();
+          } catch (e) {
+            Alert.alert('Mic Error', e.message || 'Unable to start recording');
+            return;
+          }
+        }
+
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return Alert.alert('Error', 'No token found');
+
+        const formData = new FormData();
+        formData.append('lead_id', selectedLead.id);
+        formData.append('selfie', { uri: selfieImage, type: 'image/jpeg', name: 'selfie.jpg' });
+        formData.append('latitude', locationCoords.latitude);
+        formData.append('longitude', locationCoords.longitude);
+        formData.append('plan_interest', selectedPlan.name);
+        formData.append('next_follow_up_date', nextFollowUpDate);
+
+        // If stopping, stop recorder and attach audio
+        if (endpoint === '/meetings/end') {
+
+          const statusId = selectedStatus?.id;
+          if (!statusId) {
+            Alert.alert('Select Status', 'Please select a meeting outcome/status.');
+            setLoadingAction(false);
+            return;
+          }
+
+
+          if (!nextFollowUpDate && selectedStatus.name !== 'Sold' ) {
+            Alert.alert('Error', 'Please set a next follow up date');
+            setLoadingAction(false);
+            return;
+          }
+
+          formData.append('lead_status_id', String(statusId));
+
+          // Stop recorder and attach audio
+          const { uri } = await stopMeetingRecording();
+          setRecordingUri(uri);
+
+          const audioPart = buildAudioFormPart(uri, 'meeting');
+          if (audioPart) {
+            formData.append('recording', audioPart);
+          }
+
+          // also append optional duration if you want (example)
+          // formData.append('duration', Math.floor(durationMillis / 1000));
+        }
+
+        if (endpoint === '/meetings/end') {
+
+
+          // Add recording to form data
+          recordingUri ? formData.append('recording', { uri: recordingUri, type: 'audio/m4a', name: 'meeting.m4a' }) : null;
+          // Add notes to form data
+          notes ? formData.append('notes', notes) : null;
+        }
+
+        console.log('request:', `${BASE_URL}${endpoint}`, formData);
+
+        const res = await axios.post(`${BASE_URL}${endpoint}`, formData, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        });
+
+        // Show success message
+        Alert.alert('Success', res.data.message);
+      } else {
+        const token = await AsyncStorage.getItem('token');
+        if (!token) return Alert.alert('Error', 'No token found');
+
+        const res = await axios.post(`${BASE_URL}${endpoint}`, null, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        });
+        Alert.alert('Error', res.data.message);
+      }
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', err.response?.data?.message || 'Something went wrong');
+    } finally {
+      setLoadingAction(null);
+      // Re-fetch after action
+      await fetchMeetingStatus();
+    }
+  };
+
+  // Fetch meeting status
+  const fetchMeetingStatus = async () => {
+    setLoadingAction(true);
+    try {
+      const lead_id = selectedLead?.id;
+      const token = await AsyncStorage.getItem('token');
+
+      const res = await axios.post(
+        `${BASE_URL}/meetings/check/status`,
+        { lead_id },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/json',
+          },
+          timeout: 15000,
+        }
+      );
+
+      const data = res.data;
+
+      if (data.exists && data.data?.meeting_start_time) {
+        setMeetingActive(true);
+        setMeetingStartTime(data.data.meeting_start_time);
+        // ⬇️ drive the timer from backend start time
+        startTimer(data.data.meeting_start_time);
+      } else {
+        setMeetingActive(false);
+        setMeetingStartTime(null);
+        // ⬇️ stop/reset timer when no active meeting
+        resetTimer();
+      }
+    } catch (err) {
+      if (err.response) {
+        console.log('Server responded:', err.response.status, err.response.data);
+      } else if (err.request) {
+        console.log('No response:', err.message);
+      } else {
+        console.log('Setup error:', err.message);
+      }
+    } finally {
+      setLoadingAction(false);
+    }
+  };
+
+
+  // Fetch meeting status on load
+  useEffect(() => {
+    if (selectedLead) {
+      fetchMeetingStatus();
+    }
+  }, [selectedLead]);
+
+  useEffect(() => {
+    console.log('meetingActive:', meetingActive);
+    console.log('meetingStartTime:', meetingStartTime);
+    console.log('meetingElapsed:', meetingElapsed);
+    console.log('loadingAction:', loadingAction);
+  }, [meetingActive]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -136,6 +463,12 @@ const MeetingTimerScreen = () => {
       </View>
 
 
+      <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={80} // adjust if you have headers/navbars
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <ScrollView
         // refreshControl={
         //   // <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -145,170 +478,148 @@ const MeetingTimerScreen = () => {
         }}
       >
 
-        {selectedLead ? (
-          <View style={{ flex: 1, paddingHorizontal: 20, backgroundColor: '#F6F6F6' }}>
-            <View style={{ backgroundColor: '#fff', borderRadius: 15, padding: 20, }}>
+        {/* Meeting Controls */}
+        {selectedLead?.id ? (
+          <View style={styles.meetingControls}>
+            {loadingAction ? (
+              <TouchableOpacity style={[styles.meetingControlButton, styles.loadingButton]}>
+                <Text style={styles.meetingControlButtonText}>Loading...</Text>
+                <MaterialIcons name="hourglass-empty" size={24} color="#fff" />
+              </TouchableOpacity>
+            ) : loadingAction === false && meetingActive ? (
+              <View style={{ flex: 1 }}>
 
-              {/* Meeting Info */}
-              <View style={styles.meetingInfo}>
-                <View style={styles.meetingHeader}>
-                  <View>
-                    <Text style={styles.meetingName}>{selectedLead?.contact_person}</Text>
-                    <Text style={styles.meetingLocation}>At {selectedLead?.shop_name}</Text>
+                {/* // If meeting is active, show the timer */}
+                <View>
+
+                  <View style={{ backgroundColor: '#fff', borderRadius: 15, padding: 20, }}>
+
+                    {/* Meeting Info */}
+                    <View style={styles.meetingInfo}>
+                      <View style={styles.meetingHeader}>
+                        <View>
+                          <Text style={styles.meetingName}>{selectedLead?.contact_person}</Text>
+                          <Text style={styles.meetingLocation}>At {selectedLead?.shop_name}</Text>
+                        </View>
+                        <View style={styles.recordingControls}>
+
+                          {/* Record Button */}
+                          <TouchableOpacity style={styles.recordButton}>
+                            <MaterialIcons name="mic" size={16} color="#ff9500" />
+                            <Text style={styles.recordText}>
+                              Recording...
+                              {/* {timerState === 'stopped' ? 'Not Started yet' :
+                                timerState === 'running' ? 'Recording...' : 'Paused'} */}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Timer Display */}
+                    <Text style={styles.timerDisplay}>{formatTime(time)}</Text>
+
+
+
                   </View>
-                  <View style={styles.recordingControls}>
-                    {/* Pause Button - Only visible when recording */}
-                    {/* {timerState === 'running' && (
-                      <TouchableOpacity style={styles.pauseButton} onPress={pauseTimer}>
-                        <MaterialIcons name="pause" size={20} color="#ff9500" />
-                      </TouchableOpacity>
-                    )} */}
 
-                    {/* Record Button */}
-                    <TouchableOpacity style={styles.recordButton}>
-                      <MaterialIcons name="mic" size={16} color="#ff9500" />
-                      <Text style={styles.recordText}>
-                        {timerState === 'stopped' ? 'Not Started yet' :
-                          timerState === 'running' ? 'Recording...' : 'Paused'}
-                      </Text>
+                  {/* Meeting Outcome */}
+                  <View style={{ marginTop: 20 }}>
+                    <Text style={styles.sectionTitle}>Meeting Outcome</Text>
+                    <TouchableOpacity style={styles.dropdown} onPress={openStatusModal}>
+                      <Text style={styles.dropdownText}> {selectedStatus?.name || 'Select Outcome'}</Text>
+                      <Ionicons name="chevron-down" size={20} color="#666" />
                     </TouchableOpacity>
                   </View>
-                </View>
-              </View>
 
-              {/* Timer Display */}
-              <Text style={styles.timerDisplay}>{formatTime(time)}</Text>
-
-              {/* Status and Controls */}
-              <View style={styles.statusSection}>
-                <View style={styles.controlButtons}>
-
-
-                  {/* Yellow Pause/Play Button */}
-                  {timerState !== 'stopped' && (
-                    <TouchableOpacity
-                      style={[styles.controlButton, styles.yellowButton]}
-                      onPress={timerState === 'running' ? pauseTimer : resumeTimer}
-                    >
-                      <MaterialIcons
-                        name={timerState === 'running' ? 'pause' : 'play-arrow'}
-                        size={24}
-                        color="#fff"
-                      />
+                  {/* Meeting Outcome */}
+                  <View style={{ marginTop: 20 }}>
+                    <Text style={styles.sectionTitle}>Plan interested in</Text>
+                    <TouchableOpacity style={styles.dropdown} onPress={openPlanModal}>
+                      <Text style={styles.dropdownText}> {selectedPlan?.name || 'Select Plan'}</Text>
+                      <Ionicons name="chevron-down" size={20} color="#666" />
                     </TouchableOpacity>
-                  )}
+                  </View>
 
-                  {/* Green Play / Red Stop Button */}
-                  <TouchableOpacity
-                    style={[
-                      styles.controlButton,
-                      timerState === 'stopped' ? styles.greenButton : styles.redButton
-                    ]}
-                    onPress={timerState === 'stopped' ? startTimer : handleStopPress}
-                  >
-                    <MaterialIcons
-                      name={timerState === 'stopped' ? 'play-arrow' : 'stop'}
-                      size={24}
-                      color="#fff"
+                  {/* Meeting Notes */}
+                  <View style={styles.notesSection}>
+                    <Text style={styles.sectionTitle}>Meeting Notes</Text>
+                    <TextInput
+                      style={styles.notesInput}
+                      placeholder="Add Notes during the meeting..."
+                      placeholderTextColor="#999"
+                      multiline
+                      value={notes}
+                      onChangeText={setNotes}
                     />
+                  </View>
+
+                  {/* Next Follow Up Date */}
+                  {console.log("selectedStatus " + selectedStatus)}
+                  {selectedStatus?.name !== 'Sold' &&
+                  (
+                  <View style={{ marginVertical: 20 }}>
+                    <Text style={styles.sectionTitle}>Next Follow Up Date</Text>
+
+                    <TouchableOpacity
+                      style={styles.dropdown}
+                      onPress={() => setShowDatePicker(true)}
+                    >
+                      <Text style={{ color: nextFollowUpDate ? "#000" : "#999" }}>
+                        {nextFollowUpDate || "Select a date"}
+                      </Text>
+                      <Ionicons name="calendar-outline" size={20} color="#666" />
+                    </TouchableOpacity>
+
+                    {/* Date Picker */}
+                    {showDatePicker && (
+                      <DateTimePicker
+                        value={nextFollowUpDate ? new Date(nextFollowUpDate) : new Date()}
+                        mode="date"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={onChangeDate}
+                      />
+                    )}
+                  </View>
+                  )
+                  }
+
+                  <TouchableOpacity
+                    style={[styles.meetingControlButton, styles.meetingControlButtonStop, { marginBottom: 20 }]}
+                    onPress={() => sendMeetingAction('/meetings/end', 'end')}
+                  >
+                    <Text style={styles.meetingControlButtonText}>Stop Meeting</Text>
+                    <MaterialIcons name="stop" size={24} color="#fff" />
                   </TouchableOpacity>
 
                 </View>
               </View>
 
-            </View>
-
-            {/* Photo Options */}
-            <View style={styles.photoSection}>
-              <TouchableOpacity style={styles.photoOption}>
-                <MaterialIcons name="camera-alt" size={40} color="#ccc" />
-                <Text style={styles.photoText}>Take Selfie <Text style={styles.required}>*</Text></Text>
+            ) : (
+              <TouchableOpacity
+                style={[styles.meetingControlButton, styles.meetingControlButtonStart]}
+                onPress={() => sendMeetingAction('/meetings/start', 'start')}
+              >
+                <Text style={styles.meetingControlButtonText}>Start Meeting</Text>
+                <MaterialIcons name="play-arrow" size={24} color="#fff" />
               </TouchableOpacity>
-
-              <TouchableOpacity style={styles.photoOption}>
-                <MaterialIcons name="camera-alt" size={40} color="#ccc" />
-                <Text style={styles.photoText}>Take Shop Photo <Text style={styles.required}>*</Text></Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Meeting Outcome */}
-            <View>
-              <Text style={styles.sectionTitle}>Meeting Outcome</Text>
-              <TouchableOpacity style={styles.dropdown}>
-                <Text style={styles.dropdownText}>Select Outcome</Text>
-                <Ionicons name="chevron-down" size={20} color="#666" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Meeting Notes */}
-            <View style={styles.notesSection}>
-              <Text style={styles.sectionTitle}>Meeting Notes</Text>
-              <TextInput
-                style={styles.notesInput}
-                placeholder="Add Notes during the meeting..."
-                placeholderTextColor="#999"
-                multiline
-                value={notes}
-                onChangeText={setNotes}
-              />
-              <TouchableOpacity style={styles.saveButton}>
-                <MaterialIcons name="save" size={20} color="#fff" />
-                <Text style={styles.saveButtonText}>Save Meeting</Text>
-              </TouchableOpacity>
-            </View>
-
+            )}
           </View>
-
-
-        ) : (
-          <View style={[styles.container, { paddingHorizontal: 20, marginBottom: 20 }]}>
-            <View style={styles.photoOption} >
-              <Ionicons name="people-outline" size={50} color="#ccc" />
-              <Text style={[styles.sectionTitle, { textAlign: 'center', marginTop: 20, color: '#666' }]}>
-                Please select a lead to start the meeting.
-              </Text>
-            </View>
-          </View>
-        )}
-
-        {/* Stop Recording Confirmation Modal */}
-        <Modal
-          visible={showStopConfirmation}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={cancelStop}
-        >
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <View style={styles.modalIcon}>
-                <MaterialIcons name="mic-off" size={30} color="#ff6b6b" />
-              </View>
-
-              <Text style={styles.modalTitle}>Stop Recording</Text>
-              <Text style={styles.modalMessage}>
-                Are sure you want to stop recording
-              </Text>
-
-              <View style={styles.modalButtons}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={cancelStop}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.stopButton]}
-                  onPress={confirmStop}
-                >
-                  <Text style={styles.stopButtonText}>Stop</Text>
-                </TouchableOpacity>
+        )
+          :
+          (
+            <View style={[styles.container, { paddingHorizontal: 20, marginBottom: 20 }]}>
+              <View style={styles.photoOption} >
+                <Ionicons name="people-outline" size={50} color="#ccc" />
+                <Text style={[styles.sectionTitle, { textAlign: 'center', marginTop: 20, color: '#666' }]}>
+                  Please select a lead to start the meeting.
+                </Text>
               </View>
             </View>
-          </View>
-        </Modal>
+          )
+        }
 
-        {/* Modal */}
+        {/* Select Lead Modal */}
         <Modal
           animationType="slide"
           transparent={true}
@@ -342,13 +653,13 @@ const MeetingTimerScreen = () => {
                       <View
                         style={[
                           styles.statusTag,
-                          lead.lead_status_data.name == 'Sold'
+                          lead.lead_status_data?.name == 'Sold'
                             ? styles.statusOngoing
                             : styles.statusStart,
                         ]}
                       >
                         <Text style={styles.statusText}>
-                          {lead.lead_status_data.name || 'Pending'}
+                          {lead.lead_status_data?.name || 'Pending'}
                         </Text>
                       </View>
                     </View>
@@ -389,8 +700,145 @@ const MeetingTimerScreen = () => {
           </View>
         </Modal>
 
-      </ScrollView>
+        {/* Meeting Outcome Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={statusModalVisible}
+          onRequestClose={closeStatusModal}
+        >
+          <View style={styles.leadModalOverlay}>
+            <View style={styles.leadModalContent}>
+              <Text style={styles.leadTitle}>Select Status</Text>
 
+              {/* Search input (optional) */}
+              {/* <View style={{ marginBottom: 10 }}>
+                <TextInput
+                  placeholder="Search status..."
+                  value={statusSearch}
+                  onChangeText={setStatusSearch}
+                  style={{
+                    borderWidth: 1,
+                    borderColor: '#ddd',
+                    borderRadius: 8,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                  }}
+                />
+              </View> */}
+
+              <ScrollView keyboardShouldPersistTaps="handled">
+                {meetingOutcomeOptions.map((status) => {
+                  const isSelected = selectedStatus?.id === status.id;
+                  return (
+                    <TouchableOpacity
+                      key={status.id}
+                      onPress={() => onPickStatus(status)}
+                    >
+                      <View style={[
+                        styles.scheduleItem,
+                        { alignItems: 'center', paddingVertical: 12 }
+                      ]}>
+                        <Text style={[
+                          styles.scheduleName,
+                          { flex: 1 }
+                        ]}>
+                          {status?.name}
+                        </Text>
+
+                        {/* radio / check indicator */}
+                        <View style={[
+                          {
+                            width: 22, height: 22, borderRadius: 11,
+                            borderWidth: 2, borderColor: isSelected ? '#4CAF50' : '#bbb',
+                            alignItems: 'center', justifyContent: 'center',
+                          }
+                        ]}>
+                          {isSelected ? (
+                            <View style={{
+                              width: 12, height: 12, borderRadius: 6, backgroundColor: '#4CAF50'
+                            }} />
+                          ) : null}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.stopButton]}
+                onPress={closeStatusModal}
+              >
+                <Text style={styles.stopButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+
+        {/* Plan Modal */}
+        <Modal
+          animationType="slide"
+          transparent={true}
+          visible={planModalVisible}
+          onRequestClose={closePlanModal}
+        >
+          <View style={styles.leadModalOverlay}>
+            <View style={styles.leadModalContent}>
+              <Text style={styles.leadTitle}>Select Plan</Text>              
+
+              <ScrollView keyboardShouldPersistTaps="handled">
+                {plansOptions.map((plan) => {
+                  const isSelected = selectedPlan?.id === plan.id;
+                  return (
+                    <TouchableOpacity
+                      key={plan.id}
+                      onPress={() => onPickPlan(plan)}
+                    >
+                      <View style={[
+                        styles.scheduleItem,
+                        { alignItems: 'center', paddingVertical: 12 }
+                      ]}>
+                        <Text style={[
+                          styles.scheduleName,
+                          { flex: 1 }
+                        ]}>
+                          {plan?.name}
+                        </Text>
+                        
+                        <View style={[
+                          {
+                            width: 22, height: 22, borderRadius: 11,
+                            borderWidth: 2, borderColor: isSelected ? '#4CAF50' : '#bbb',
+                            alignItems: 'center', justifyContent: 'center',
+                          }
+                        ]}>
+                          {isSelected ? (
+                            <View style={{
+                              width: 12, height: 12, borderRadius: 6, backgroundColor: '#4CAF50'
+                            }} />
+                          ) : null}
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <TouchableOpacity
+                style={[styles.modalButton, styles.stopButton]}
+                onPress={closeStatusModal}
+              >
+                <Text style={styles.stopButtonText}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+      </ScrollView>
+      </TouchableWithoutFeedback>
+      </KeyboardAvoidingView>
 
     </SafeAreaView>
   );
@@ -553,7 +1001,7 @@ const styles = StyleSheet.create({
     color: '#f44336',
   },
   notesSection: {
-    marginVertical: 30,
+    marginTop: 20,
   },
   notesInput: {
     backgroundColor: '#fff',
@@ -702,6 +1150,38 @@ const styles = StyleSheet.create({
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#ccc",
+  },
+
+  // Meeting Controls
+  meetingControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 20,
+  },
+  meetingControlButton: {
+    flex: 1,
+    padding: 15,
+    borderRadius: 8,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 10,
+    alignItems: 'center',
+  },
+  loadingButton: {
+    backgroundColor: '#ccc',
+  },
+  meetingControlButtonStart: {
+    backgroundColor: '#22C55E',
+  },
+  meetingControlButtonStop: {
+    backgroundColor: '#f44336',
+  },
+  meetingControlButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

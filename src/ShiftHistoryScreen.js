@@ -5,6 +5,15 @@ import $BASE_URL from './config';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/Ionicons';
 
+const formatDateForDisplay = (date) => {
+  if (!date) return '';
+  const options = { 
+    year: 'numeric', 
+    month: 'short', 
+    day: 'numeric' 
+  };
+  return date.toLocaleDateString('en-US', options);
+};
 
 export default function ShiftHistoryScreen() {
   const [shifts, setShifts] = useState([]);
@@ -16,6 +25,7 @@ export default function ShiftHistoryScreen() {
 
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
+  const [showDateFilter, setShowDateFilter] = useState(false);
 
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -24,13 +34,17 @@ export default function ShiftHistoryScreen() {
     setLoading(true);
     const token = await AsyncStorage.getItem('token');
 
-    let url = `${$BASE_URL}/shift/history?page=${pageNumber}&filter=${filter}`;
+    let url = `${$BASE_URL}/shift/history?page=${pageNumber}`;
 
-    if (selectedFilter) {
+    // Custom date range takes priority
+    if (customStartDate && customEndDate) {
+      url += `&filter=custom&start_date=${formatDate(customStartDate)}&end_date=${formatDate(customEndDate)}`;
+    } else if (customStartDate) {
+      url += `&filter=custom&start_date=${formatDate(customStartDate)}`;
+    } else if (customEndDate) {
+      url += `&filter=custom&end_date=${formatDate(customEndDate)}`;
+    } else if (selectedFilter) {
       url += `&filter=${selectedFilter}`;
-      if (selectedFilter === 'custom') {
-        url += `&start_date=${customStartDate}&end_date=${customEndDate}`; // later replace with Date Picker values
-      }
     }
 
     console.log('Fetching shifts from URL:', url);
@@ -58,7 +72,7 @@ export default function ShiftHistoryScreen() {
 
   useEffect(() => {
     fetchShifts(1, filter);
-  }, [filter]);
+  }, [filter, customStartDate, customEndDate]);
 
 
   // Reset custom dates and filter
@@ -70,22 +84,28 @@ export default function ShiftHistoryScreen() {
 
   // handle start date
   const onStartDateChange = (event, selectedDate) => {
-    setShowStartPicker(false);
+    setShowStartPicker(Platform.OS === 'ios');
     console.log('Selected Start Date:', selectedDate);
     if (selectedDate) {
-      setStartCustomDate(formatDate(selectedDate));
-      setShowEndPicker(true);
+      setStartCustomDate(selectedDate);
     }
   };
 
   // handle end date
   const onEndDateChange = (event, selectedDate) => {
-    setShowEndPicker(false);
+    setShowEndPicker(Platform.OS === 'ios');
     console.log('Selected End Date:', selectedDate);
     if (selectedDate) {
-      setEndCustomDate(formatDate(selectedDate));
-      setFilter('custom');
+      setEndCustomDate(selectedDate);
     }
+  };
+
+  // Clear date filters
+  const clearDateFilters = () => {
+    setStartCustomDate(null);
+    setEndCustomDate(null);
+    setShowDateFilter(false);
+    setFilter(''); // Reset to no filter
   };
 
   // Format date to YYYY-MM-DD
@@ -184,40 +204,97 @@ export default function ShiftHistoryScreen() {
       <View style={styles.filterRow}>
 
         {/* Current Day filter */}
-        <TouchableOpacity style={filter == 'today' ? styles.ActivefilterBtn : styles.filterBtn} onPress={() => setFilter('today')}>
+        <TouchableOpacity style={filter == 'today' ? styles.ActivefilterBtn : styles.filterBtn} onPress={() => { clearDateFilters(); setFilter('today'); }}>
           <Icon name='calendar-number-outline' size={15} style={filter == 'today' ? styles.ActivefilterBtnText : styles.filterBtnText} /> <Text style={filter == 'today' ? styles.ActivefilterBtnText : styles.filterBtnText}> Today</Text>
         </TouchableOpacity>
 
         {/* This Week Filter starts from sunday */}
-        <TouchableOpacity style={filter == 'this_week' ? styles.ActivefilterBtn : styles.filterBtn} onPress={() => setFilter('this_week')}>
+        <TouchableOpacity style={filter == 'this_week' ? styles.ActivefilterBtn : styles.filterBtn} onPress={() => { clearDateFilters(); setFilter('this_week'); }}>
           <Icon name='calendar-number-outline' size={15} style={filter == 'this_week' ? styles.ActivefilterBtnText : styles.filterBtnText} /> <Text style={filter == 'this_week' ? styles.ActivefilterBtnText : styles.filterBtnText}>This Week</Text>
         </TouchableOpacity>
 
-        {/* Custom Filter */}
-        <TouchableOpacity style={filter == 'custom' ? styles.ActivefilterBtn : styles.filterBtn} onPress={() => { resetCustomDates(); setShowStartPicker(true); }}>
-          <Icon name='calendar-outline' size={15} style={filter == 'custom' ? styles.ActivefilterBtnText : styles.filterBtnText} /> <Text style={filter == 'custom' ? styles.ActivefilterBtnText : styles.filterBtnText}>Custom</Text>
+        {/* Date Range Filter Toggle */}
+        <TouchableOpacity 
+          style={[
+            (customStartDate || customEndDate) ? styles.ActivefilterBtn : styles.filterBtn,
+            styles.dateFilterToggle
+          ]} 
+          onPress={() => {
+            setFilter('');
+            setShowDateFilter(!showDateFilter);
+          }}
+        >
+          <Icon 
+            name='calendar-outline' 
+            size={15} 
+            style={(customStartDate || customEndDate) ? styles.ActivefilterBtnText : styles.filterBtnText} 
+          /> 
+          <Text style={(customStartDate || customEndDate) ? styles.ActivefilterBtnText : styles.filterBtnText}>
+            Date Range
+          </Text>
         </TouchableOpacity>
-
-        {/* Show Start Date Picker */}
-        {showStartPicker && (
-          <DateTimePicker
-            value={customStartDate || new Date()}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-            onChange={onStartDateChange}
-          />
-        )}
-
-        {/* Show End Date Picker */}
-        {showEndPicker && (
-          <DateTimePicker
-            value={customEndDate || new Date()}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'inline' : 'default'}
-            onChange={onEndDateChange}
-          />
-        )}
       </View>
+
+      {/* Date Filter Container */}
+      {showDateFilter && (
+        <View style={styles.dateFilterContainer}>
+          <View style={styles.dateFilterRow}>
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowStartPicker(true)}
+            >
+              <Icon name="calendar-outline" size={16} color="#F97316" />
+              <Text style={styles.dateButtonText}>
+                {customStartDate ? formatDateForDisplay(customStartDate) : 'Start Date'}
+              </Text>
+            </TouchableOpacity>
+
+            <Text style={styles.dateToText}>to</Text>
+
+            <TouchableOpacity
+              style={styles.dateButton}
+              onPress={() => setShowEndPicker(true)}
+            >
+              <Icon name="calendar-outline" size={16} color="#F97316" />
+              <Text style={styles.dateButtonText}>
+                {customEndDate ? formatDateForDisplay(customEndDate) : 'End Date'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {(customStartDate || customEndDate) && (
+            <TouchableOpacity
+              style={styles.clearFiltersButton}
+              onPress={clearDateFilters}
+            >
+              <Icon name="close-circle-outline" size={16} color="#EF4444" />
+              <Text style={styles.clearFiltersText}>Clear Filters</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {/* Date Pickers */}
+      {showStartPicker && (
+        <DateTimePicker
+          value={customStartDate || new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onStartDateChange}
+          maximumDate={customEndDate || new Date()}
+        />
+      )}
+      
+      {showEndPicker && (
+        <DateTimePicker
+          value={customEndDate || new Date()}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={onEndDateChange}
+          minimumDate={customStartDate || undefined}
+          maximumDate={new Date()}
+        />
+      )}
 
       {/* Shift List */}
       {loading && page === 1 ? (
@@ -278,14 +355,72 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign: 'center',
   },
-
-
+  dateFilterToggle: {
+    // Additional styles for date filter toggle button
+  },
+  dateFilterContainer: {
+    marginTop: 10,
+    marginBottom: 10,
+    padding: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 1,
+  },
+  dateFilterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  dateButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 6,
+  },
+  dateButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  dateToText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+    marginHorizontal: 12,
+  },
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    paddingVertical: 6,
+    gap: 4,
+  },
+  clearFiltersText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#EF4444',
+  },
   card: {
     padding: 15,
-    backgroundColor: '#f9f9f9',
+    backgroundColor: '#fff',
     marginBottom: 10,
     borderRadius: 8,
-    elevation: 1,
+    borderWidth: 2,
+    borderColor: '#EFEFF0',
   },
   dateText: {
     fontWeight: 'bold',

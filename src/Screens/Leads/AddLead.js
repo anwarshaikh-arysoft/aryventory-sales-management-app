@@ -9,6 +9,7 @@ import {
     ScrollView,
     Alert,
     Button,
+    StatusBar,
     Platform
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -17,7 +18,8 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import BASE_URL from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureLocation } from '../../utils/LocationCapture';
-
+import { colors } from '../../../theme/colors';
+import axios from 'axios';
 
 export default function AddLead({ navigation }) {
     const steps = ['Shop Information', 'Location Details', 'Business Details'];
@@ -26,6 +28,93 @@ export default function AddLead({ navigation }) {
 
     const [date, setDate] = useState(new Date());
     const [show, setShow] = useState(false);
+
+    //dropdown data states
+    const [business_type, setBusinessType] = useState([]);
+    const [lead_status, setLeadStatus] = useState([]);
+    const [plan_data, setPlan_data] = useState([]);
+    const [system_data, setSystem_data] = useState([]);
+
+    // get Business types list
+    const getBusinessData = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const response = await axios.get(`${BASE_URL}/business-types`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+
+            const businessArray = response.data.data;
+            setBusinessType(businessArray);
+
+        } catch (error) {
+            console.error('Error fetching business types:', error);
+            throw error;
+        }
+    };
+
+    // get Lead status list
+    const getLeadStatusData = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const response = await axios.get(`${BASE_URL}/lead-statuses`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+            const data = await response.data.data;
+            setLeadStatus(data);
+        } catch (error) {
+            console.error('Error fetching lead statuses:', error);
+            throw error;
+        }
+    };
+
+    // Get plans list
+    const getPlansData = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const response = await axios.get(`${BASE_URL}/plans`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+            const data = await response.data.data;
+            setPlan_data(data);
+        } catch (error) {
+            console.error('Error fetching plans:', error);
+            throw error;
+        }   
+    };
+
+    // Get current list of system client might be using
+    const getSystemData = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            const response = await axios.get(`${BASE_URL}/current-systems`, {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    Accept: 'application/json',
+                },
+            });
+            const data = await response.data.data;
+            setSystem_data(data);
+        } catch (error) {
+            console.error('Error fetching current systems:', error);
+            throw error;
+        }
+    };
+    
+    useEffect(() => {
+        getBusinessData();
+        getLeadStatusData();
+        getPlansData();
+        getSystemData();
+    }, []);
 
     const onChange = (event, selectedDate) => {
         if (selectedDate) {
@@ -72,40 +161,27 @@ export default function AddLead({ navigation }) {
         prospect_rating: '5',      // NEW
     });
 
-
-
     // Dummy dropdown options
-    const businessTypes = [
-        { id: 1, name: 'Mobile Shop' },
-        { id: 2, name: 'Electronic Store' },
-        { id: 3, name: 'Computer Shop' },
-        { id: 4, name: 'Accessories Shop' },
-        { id: 5, name: 'Repair Center' },
-        { id: 6, name: 'Others' },
-    ];
+    const businessTypes = business_type.map((bt) => ({
+        id: `${bt.id}`,
+        name: `${bt.name}`
+    }));
 
-    const plans = [
-        { id: 'Free', name: 'Free' },
-        { id: 'Standard', name: 'Standard' },
-        { id: 'Pro', name: 'Pro' },
-        { id: 'Premium', name: 'Premium' },
-    ];
 
-    const currentSystems = [
-        { id: 1, name: 'Manual/Register' },
-        { id: 2, name: 'Excel Sheets' },
-        { id: 3, name: 'Other Software' },
-        { id: 4, name: 'No System' },
-    ];
-    const leadStatuses = [
-        { id: 1, name: 'Interested' },
-        { id: 2, name: 'Not Interested' },
-        { id: 3, name: 'Visit Again' },
-        { id: 4, name: 'Demo Scheduled' },
-        { id: 5, name: 'Sold' },
-        { id: 6, name: 'Already Using CRM' },
-    ];
+    const plans = plan_data.map((pl) => ({
+        id: `${pl.id}`,
+        name: `${pl.name}`
+    }));
 
+    const currentSystems = system_data.map((cs) => ({
+        id: `${cs.id}`,
+        name: `${cs.name}`
+    }));
+
+    const leadStatuses = lead_status.map((ls) => ({
+        id: `${ls.id}`,
+        name: `${ls.name}`
+    }));
 
     const handleChange = (name, value) => {
         setFormData(prev => ({ ...prev, [name]: value }));
@@ -149,32 +225,35 @@ export default function AddLead({ navigation }) {
         switch (step) {
             case 1:
                 return (
-                    <View style={styles.card}>
-                        <Text style={styles.sectionTitle}>Shop Information</Text>
-                        <InputField icon="business-outline" placeholder="Shop Name *" value={formData.shop_name} onChangeText={text => handleChange('shop_name', text)} />
-                        <InputField icon="person-outline" placeholder="Name *" value={formData.contact_person} onChangeText={text => handleChange('contact_person', text)} />
-                        <InputField icon="call-outline" placeholder="Mobile Number *" value={formData.mobile_number} onChangeText={text => handleChange('mobile_number', text)} keyboardType="phone-pad" />
-                        <InputField icon="call-outline" placeholder="Alternate Number" value={formData.alternate_number ?? ''} onChangeText={text => handleChange('alternate_number', text)} keyboardType="phone-pad" />
-                        <InputField icon="mail-outline" placeholder="Email" value={formData.email} onChangeText={text => handleChange('email', text)} keyboardType="email-address" />
-                    </View>
+                    <>
+                        <View style={styles.card}>
+                            <Text style={styles.sectionTitle}>Shop Information</Text>
+                            <InputField icon="business-outline" placeholder="Shop Name *" value={formData.shop_name} onChangeText={text => handleChange('shop_name', text)} />
+                            <InputField icon="person-outline" placeholder="Name *" value={formData.contact_person} onChangeText={text => handleChange('contact_person', text)} />
+                            <InputField icon="call-outline" placeholder="Mobile Number *" value={formData.mobile_number} onChangeText={text => handleChange('mobile_number', text)} keyboardType="phone-pad" />
+                            <InputField icon="call-outline" placeholder="Alternate Number" value={formData.alternate_number ?? ''} onChangeText={text => handleChange('alternate_number', text)} keyboardType="phone-pad" />
+                            <InputField icon="mail-outline" placeholder="Email" value={formData.email} onChangeText={text => handleChange('email', text)} keyboardType="email-address" />
+                        </View>
+                        <View style={styles.card}>
+                            <Text style={styles.sectionTitle}>Location Details</Text>
+                            <InputField icon="location-outline" placeholder="Area / Locality *" value={formData.area_locality} onChangeText={text => handleChange('area_locality', text)} />
+                            <InputField icon="location-outline" placeholder="Pincode *" value={formData.pincode} onChangeText={text => handleChange('pincode', text)} keyboardType="numeric" />
+                            <InputField icon="home-outline" placeholder="Address *" value={formData.address} onChangeText={text => handleChange('address', text)} multiline />
+                            <View style={[styles.gpsRow]}>
+                                <View style={{ flex: 1 }}>
+                                    <InputField icon="navigate-outline" placeholder="GPS Location *" value={formData.gps_location} onChangeText={text => handleChange('gps_location', text)} />
+                                </View>
+                                <TouchableOpacity style={styles.gpsButton} onPress={() => updateLocation()}>
+                                    <Icon name="locate-outline" size={20} color="#fff" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </>
                 );
             case 2:
                 return (
                     <View style={styles.card}>
-                        <Text style={styles.sectionTitle}>Location Details</Text>
-                        <InputField icon="location-outline" placeholder="Area / Locality *" value={formData.area_locality} onChangeText={text => handleChange('area_locality', text)} />
-                        <InputField icon="location-outline" placeholder="Pincode *" value={formData.pincode} onChangeText={text => handleChange('pincode', text)} keyboardType="numeric" />
-                        <InputField icon="home-outline" placeholder="Address *" value={formData.address} onChangeText={text => handleChange('address', text)} multiline />
-                        <View style={[styles.gpsRow]}>
-                            <View style={{ flex: 1 }}>
-                                <InputField icon="navigate-outline" placeholder="GPS Location *" value={formData.gps_location} onChangeText={text => handleChange('gps_location', text)} />
-                            </View>
-                            <TouchableOpacity style={styles.gpsButton} onPress={() => updateLocation()}>
-                                <Icon name="locate-outline" size={20} color="#fff" />
-                            </TouchableOpacity>
-                        </View>
-
-
+                        <Text style={styles.sectionTitle}>Lead Status</Text>
                         {/* New fields */}
                         {/* <InputField
                             icon="document-text-outline"
@@ -216,6 +295,8 @@ export default function AddLead({ navigation }) {
                             value={formData.meeting_notes}
                             onChangeText={text => handleChange('meeting_notes', text)}
                             multiline
+                            numberOfLinesnumberOfLines={4}
+                            style={{ textAlignVertical: 'center', height: 150 }}                                                       
                         />
                     </View>
                 );
@@ -234,7 +315,14 @@ export default function AddLead({ navigation }) {
     };
 
     return (
-        <View style={styles.container}>
+        <View style={[styles.container, { backgroundColor: colors.primaryBackground }]}>
+
+            <StatusBar
+                translucent={true}        // Allows content to go under it
+                backgroundColor="transparent" // Makes background see-through
+                barStyle="dark-content"   // or "light-content" depending on your design
+            />      
+
             {/* Stepper */}
             <View style={styles.progressContainer}>
                 {steps.map((label, index) => {
@@ -253,16 +341,18 @@ export default function AddLead({ navigation }) {
             <ScrollView style={{ flex: 1 }}>{renderStepContent()}</ScrollView>
 
             {/* Navigation Buttons */}
-            <View style={styles.buttonRow}>
-                {step > 1 && (
+            <View style={styles.buttonRow}>                
+                {step > 1 && (                    
                     <TouchableOpacity style={styles.prevButton} onPress={prevStep}>
                         <Text style={[styles.buttonText, { color: '#FF7A00' }]}>Previous</Text>
                     </TouchableOpacity>
                 )}
                 {step < steps.length ? (
+                    <>
                     <TouchableOpacity style={styles.nextButton} onPress={nextStep}>
                         <Text style={[styles.buttonText, { color: '#fff' }]}>Next</Text>
                     </TouchableOpacity>
+                    </>
                 ) : (
                     <TouchableOpacity style={styles.nextButton} onPress={handleSubmit}>
                         <Text style={[styles.buttonText, { color: '#fff' }]}>Submit</Text>
@@ -293,7 +383,7 @@ const Dropdown = ({ label, selectedValue, onValueChange, options }) => (
 );
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F7F7F7', padding: 16 },
+    container: { flex: 1, padding: 16 },
     progressContainer: { flexDirection: 'row', alignItems: 'center', marginBottom: 20, justifyContent: 'center' },
     progressStep: { flexDirection: 'row', alignItems: 'center' },
     circle: { width: 28, height: 28, borderRadius: 14, justifyContent: 'center', alignItems: 'center' },

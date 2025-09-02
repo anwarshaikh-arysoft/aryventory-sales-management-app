@@ -4,6 +4,7 @@ import { ChevronLeft, Building2 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 
 const AddNewLeadScreen = () => {
+    
   const navigation = useNavigation();
 
   const [formData, setFormData] = useState({
@@ -115,17 +116,7 @@ const AddNewLeadScreen = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f9fafb' },
-  header: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6'
-  },
+  container: { flex: 1 },
   backButton: { padding: 8 },
   headerTitle: { fontSize: 18, fontWeight: '600', color: '#111827' },
   stepsWrapper: { paddingHorizontal: 20, paddingVertical: 24 },

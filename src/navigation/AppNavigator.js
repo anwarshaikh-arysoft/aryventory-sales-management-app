@@ -26,10 +26,11 @@ import AddNewLead from '../AddNewLead';
 import MeetingTimer from '../MeetingTimer';
 import MyLeads from '../MyLeads';
 import Notifications from '../Notifications';
-import Reports from '../Reports';
+import Reports from '../Screens/Home/Reports';
 import AddLead from '../Screens/Leads/AddLead';
 import ProfileScreen from '../Screens/Home/ProfileScreen';
 import ShiftHistoryScreen from '../ShiftHistoryScreen';
+import LeadsList from '../Screens/Leads/LeadsList';
 
 
 
@@ -47,11 +48,10 @@ export default function AppNavigator() {
   }
 
   return (
-    <ThemeProvider>
       <NavigationContainer>
         <Stack.Navigator
           screenOptions={{
-            headerShown: true,            
+            headerShown: true,
             headerStyle: { backgroundColor: '#F6F6F6' },
             headerShadowVisible: false, // iOS
             shadowOpacity: 0, // iOS
@@ -61,6 +61,11 @@ export default function AppNavigator() {
             headerTitleAlign: 'center',
             headerTitleStyle: { fontWeight: 'medium', fontSize: 18 },
             headerBackTitleVisible: false,
+            // Keep Android status bar non-translucent so the header calculates height correctly
+            statusBarTranslucent: false,
+            statusBarStyle: 'dark',
+            statusBarColor: '#F6F6F6',
+            contentStyle: { backgroundColor: '#F6F6F6' },
             headerLeft: ({ tintColor }) => {
               const navigation = useNavigation();
               return (
@@ -77,8 +82,9 @@ export default function AppNavigator() {
         >
           {user ? (
             <>
-              <Stack.Screen options={{ headerShown: false }} name="Home" component={HomeScreen} />
-              <Stack.Screen options={{ title : 'Profile', headerStyle: {backgroundColor: '#111214'}, headerTintColor: '#fff', }} name="profile-screen" component={ProfileScreen} />
+              <Stack.Screen options={{ headerShown: false, headerTransparent: true, statusBarTranslucent: true, statusBarStyle: 'light', }} name="Home" component={HomeScreen} />
+              <Stack.Screen options={{ title: 'Profile', statusBarColor: '#111214', statusBarStyle: 'light', headerStyle: { backgroundColor: '#111214' }, headerTintColor: '#fff', }} name="profile-screen" component={ProfileScreen} />
+              <Stack.Screen options={{ title: 'Lead List' }} name="leadlist" component={LeadsList} />
               <Stack.Screen options={{ title: 'Lead' }} name="showlead" component={ShowLead} />
               <Stack.Screen options={{ title: 'Add Lead' }} name="addlead" component={AddLead} />
               <Stack.Screen name="Meeting" component={MeetingScreen} />
@@ -89,7 +95,7 @@ export default function AppNavigator() {
               <Stack.Screen name="AddNewLead" component={AddNewLead} />
               <Stack.Screen name="MeetingTimer" component={MeetingTimer} />
               <Stack.Screen name="MyLeads" component={MyLeads} />
-              <Stack.Screen name="Notifications" component={Notifications} />              
+              <Stack.Screen name="Notifications" component={Notifications} />
               <Stack.Screen name="Reports" component={Reports} />
               <Stack.Screen name="ShiftHistory" options={{ title: 'Shift History' }} component={ShiftHistoryScreen} />
             </>
@@ -103,9 +109,7 @@ export default function AppNavigator() {
             </>
           )}
         </Stack.Navigator>
-
         <Toast />
       </NavigationContainer>
-    </ThemeProvider>
   );
 }

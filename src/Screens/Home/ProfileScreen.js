@@ -18,8 +18,9 @@ import { useAuth } from '../../context/AuthContext';
 import BASE_URL from '../../config';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
+import UserStats from '../../components/UserStats';
 
-const ProfileScreen = ({navigation}) => {
+const ProfileScreen = ({ navigation }) => {
 
   // Auth Context
   const { user, logout } = useAuth();
@@ -181,7 +182,6 @@ const ProfileScreen = ({navigation}) => {
   // Fetch settings on component mount
   useEffect(() => {
     fetchSettings();
-    console.log('Settings fetched:', settings);
   }, []);
 
   const CustomToggleSwitch = ({ isOn, onToggle }) => {
@@ -236,10 +236,10 @@ const ProfileScreen = ({navigation}) => {
             </View>
           </View>
           <View style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 15 }}>
-            <TouchableOpacity style={styles.notification}>
+            {/* <TouchableOpacity style={styles.notification}>
               <Ionicons name="notifications" size={22} color="#fff" />
               <View style={styles.badge} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
 
             {/* Add Shift History Button */}
             <TouchableOpacity
@@ -254,21 +254,9 @@ const ProfileScreen = ({navigation}) => {
       </View>
 
       <ScrollView style={styles.contentSection} showsVerticalScrollIndicator={false}>
-        {/* My Stats Section */}
-        <Text style={styles.sectionTitle}>My Stats</Text>
 
-        {/* Stats */}
-        <View style={styles.statsGrid}>
-          {stats && Object.entries(stats).map(([title, stat], index) => (
-            <View key={index} style={styles.statCard}>
-              <View style={styles.statValueContainer}>
-                <Text style={styles.statLabel}>{title}</Text>
-                <MaterialIcons name="calendar-today" size={18} color="#f97316" />
-              </View>
-              <Text style={styles.statValue}>{title == 'target' ? stats['sold'] + ' /' : ''} {stat}</Text>
-            </View>
-          ))}
-        </View>
+        {/* My Stats Section */}
+        <UserStats />
 
         {/* Settings Section */}
 
@@ -307,7 +295,16 @@ const ProfileScreen = ({navigation}) => {
             <Text style={styles.syncButtonText}>Sync Data Now</Text>
           </TouchableOpacity> */}
 
+          {/* Reports */}
+          <TouchableOpacity
+            style={styles.reportButton}
+            onPress={() => navigation.navigate('Reports')}
+          >
+            <MaterialIcons name="bar-chart" size={20} color="#fff" />
+            <Text style={styles.logoutButtonText}>Reports</Text>
+          </TouchableOpacity>
 
+          {/* Logout */}
           <TouchableOpacity
             style={styles.logoutButton}
             onPress={handleLogoutClick}
@@ -315,6 +312,8 @@ const ProfileScreen = ({navigation}) => {
             <MaterialIcons name="logout" size={20} color="#fff" />
             <Text style={styles.logoutButtonText}>Logout</Text>
           </TouchableOpacity>
+
+
 
         </View>
       </ScrollView>
@@ -595,6 +594,15 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  reportButton: {
+    backgroundColor: '#ff6b35',
+    paddingVertical: 12,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   logoutButton: {
     backgroundColor: '#ef4444',

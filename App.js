@@ -1,14 +1,14 @@
 import React from 'react';
-import { StatusBar, Platform } from 'react-native';
+import { StatusBar, Platform, View, ActivityIndicator } from 'react-native';
 import AppNavigator from './src/navigation/AppNavigator';
 import { Provider as PaperProvider, DefaultTheme } from 'react-native-paper';
 import Toast from 'react-native-toast-message';
-import { AuthProvider } from './src/context/AuthContext';
-
+import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 // import { SafeAreaView } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import * as Font from 'expo-font';
+// import * as Font from 'expo-font';
 import { useFonts } from 'expo-font';
 
 const theme = {
@@ -23,9 +23,22 @@ const theme = {
     placeholder: '#6b7280',
   },
 };
-
+// Create a wrapper component for the navigation logic
+function AppContent() {
+  const { loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#059669" />
+      </View>
+    );
+  }
+  
+  return <AppNavigator />;
+}
 export default function App() {
-
+  
   const [fontsLoaded] = useFonts({
     'Poppins-Regular': require('./assets/fonts/Poppins-Regular.ttf'),
     'Poppins-Medium': require('./assets/fonts/Poppins-Medium.ttf'),
@@ -36,34 +49,26 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
+        <>
+          <StatusBar translucent={false} backgroundColor="#F6F6F6" barStyle="dark-content" />
+          <PaperProvider
+            theme={{
+              ...theme,
+              colors: {
+                ...theme.colors,
+                background: 'transparent', // Paper root background
 
-      {/* Transparent StatusBar */}
-      <StatusBar
-        translucent={true}        // Allows content to go under it
-        backgroundColor="transparent" // Makes background see-through
-        barStyle="dark-content"   // or "light-content" depending on your design
-      />      
-
-      <SafeAreaView
-        style={{
-          flex: 1,
-          backgroundColor: '#f8f8f8', // Safe area is transparent
-        }}
-      >
-        <PaperProvider
-          theme={{
-            ...theme,
-            colors: {
-              ...theme.colors,
-              background: 'transparent', // Paper root background
-
-            },
-          }}
-        >
-            <AuthProvider>              
-              <AppNavigator />
-            </AuthProvider>
-        </PaperProvider>
+              },
+            }}
+          >
+            <ThemeProvider>
+              <AuthProvider>
+                <AppContent />
+              </AuthProvider>
+            </ThemeProvider>
+          </PaperProvider>
+        </>
       </SafeAreaView>
     </SafeAreaProvider>
   );

@@ -12,7 +12,8 @@ export async function takeSelfie() {
   // Launch front camera
   const result = await ImagePicker.launchCameraAsync({
     cameraType: ImagePicker.CameraType.front,
-    allowsEditing: false,
+    // allowsEditing: true,
+    // aspect: [1, 2],
     quality: 0.7,
   });
 

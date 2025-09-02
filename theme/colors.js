@@ -3,7 +3,9 @@ export const colors = {
   primary: '#281C9D',
   primaryMedium: '#5655B9',
   primaryLight: '#A8A3D7',
-  primaryBackground: '#F2F1F9',
+  primaryBackground: '#F6F6F6',
+  darkBackground: '#111214',
+  ctaBackground: '#F97316',
 
   // NEUTRAL
   neutralDark: '#343434',
