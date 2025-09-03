@@ -88,7 +88,7 @@ export default function AddLead({ navigation }) {
         } catch (error) {
             console.error('Error fetching plans:', error);
             throw error;
-        }   
+        }
     };
 
     // Get current list of system client might be using
@@ -108,7 +108,7 @@ export default function AddLead({ navigation }) {
             throw error;
         }
     };
-    
+
     useEffect(() => {
         getBusinessData();
         getLeadStatusData();
@@ -131,14 +131,14 @@ export default function AddLead({ navigation }) {
 
     const updateLocation = async () => {
         const coords = await captureLocation();
-            if (coords) {
-                const locationString = `${coords.latitude},${coords.longitude}`;
-                setLocation({ latitude: coords.latitude, longitude: coords.longitude });
-                setFormData(prev => ({
-                    ...prev,
-                    gps_location: locationString
-                }));
-            }
+        if (coords) {
+            const locationString = `${coords.latitude},${coords.longitude}`;
+            setLocation({ latitude: coords.latitude, longitude: coords.longitude });
+            setFormData(prev => ({
+                ...prev,
+                gps_location: locationString
+            }));
+        }
     };
 
     const [formData, setFormData] = useState({
@@ -152,7 +152,7 @@ export default function AddLead({ navigation }) {
         pincode: '',
         gps_location: location.latitude && location.longitude ? `${location.latitude},${location.longitude}` : '',
         business_type: '',
-        monthly_sales_volume : '1',
+        monthly_sales_volume: '1',
         current_system: '',
         lead_status: '',
         plan_interest: '',        // NEW
@@ -221,6 +221,42 @@ export default function AddLead({ navigation }) {
         }
     };
 
+    const handleSubmitandStartMeeting = async () => {
+        try {
+            const payload = {
+                ...formData,
+                alternate_number: formData.alternate_number || null,
+            };
+
+            const token = await AsyncStorage.getItem("token");
+
+            const response = await axios.post(
+                `${BASE_URL}/sales-executive/leads`,
+                payload,
+                {
+                    headers: {
+                        Authorization: `Bearer ${token}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
+
+            console.log(response.data);
+            navigation.navigate('Meeting', { lead: response.data.data });
+        } catch (error) {
+            if (error.response) {
+                // Server responded with an error
+                console.error(error.response.data);
+                Alert.alert("Error", "Please check your input fields.");
+            } else {
+                // Something else happened
+                console.error(error);
+                Alert.alert("Error", "Something went wrong. " + error.message);
+            }
+        }
+    };
+
+
     const renderStepContent = () => {
         switch (step) {
             case 1:
@@ -254,13 +290,6 @@ export default function AddLead({ navigation }) {
                 return (
                     <View style={styles.card}>
                         <Text style={styles.sectionTitle}>Lead Status</Text>
-                        {/* New fields */}
-                        {/* <InputField
-                            icon="document-text-outline"
-                            placeholder="Plan Interest"
-                            value={formData.plan_interest}
-                            onChangeText={text => handleChange('plan_interest', text)}
-                        /> */}
 
                         <Dropdown label="Plan Interest" selectedValue={formData.plan_interest} onValueChange={val => handleChange('plan_interest', val)} options={plans} />
 
@@ -296,7 +325,7 @@ export default function AddLead({ navigation }) {
                             onChangeText={text => handleChange('meeting_notes', text)}
                             multiline
                             numberOfLinesnumberOfLines={4}
-                            style={{ textAlignVertical: 'center', height: 150 }}                                                       
+                            style={{ textAlignVertical: 'center', height: 150 }}
                         />
                     </View>
                 );
@@ -321,7 +350,7 @@ export default function AddLead({ navigation }) {
                 translucent={true}        // Allows content to go under it
                 backgroundColor="transparent" // Makes background see-through
                 barStyle="dark-content"   // or "light-content" depending on your design
-            />      
+            />
 
             {/* Stepper */}
             <View style={styles.progressContainer}>
@@ -338,26 +367,59 @@ export default function AddLead({ navigation }) {
                 })}
             </View>
 
-            <ScrollView style={{ flex: 1 }}>{renderStepContent()}</ScrollView>
+            <ScrollView style={{ flex: 1 }}>
+
+                {/* Render without steps if is required then use renderStepContent() */}
+                <View style={styles.card}>
+                    <Text style={styles.sectionTitle}>Shop Information</Text>
+                    <InputField icon="business-outline" placeholder="Shop Name *" value={formData.shop_name} onChangeText={text => handleChange('shop_name', text)} />
+                    <InputField icon="person-outline" placeholder="Name *" value={formData.contact_person} onChangeText={text => handleChange('contact_person', text)} />
+                    <InputField icon="call-outline" placeholder="Mobile Number *" value={formData.mobile_number} onChangeText={text => handleChange('mobile_number', text)} keyboardType="phone-pad" />
+                    <InputField icon="call-outline" placeholder="Alternate Number" value={formData.alternate_number ?? ''} onChangeText={text => handleChange('alternate_number', text)} keyboardType="phone-pad" />
+                    <InputField icon="mail-outline" placeholder="Email" value={formData.email} onChangeText={text => handleChange('email', text)} keyboardType="email-address" />
+                </View>
+                <View style={styles.card}>
+                    <Text style={styles.sectionTitle}>Location Details</Text>
+                    <InputField icon="location-outline" placeholder="Area / Locality *" value={formData.area_locality} onChangeText={text => handleChange('area_locality', text)} />
+                    <InputField icon="location-outline" placeholder="Pincode *" value={formData.pincode} onChangeText={text => handleChange('pincode', text)} keyboardType="numeric" />
+                    <InputField icon="home-outline" placeholder="Address *" value={formData.address} onChangeText={text => handleChange('address', text)} multiline />
+                    <View style={[styles.gpsRow]}>
+                        <View style={{ flex: 1 }}>
+                            <InputField icon="navigate-outline" placeholder="GPS Location *" value={formData.gps_location} onChangeText={text => handleChange('gps_location', text)} />
+                        </View>
+                        <TouchableOpacity style={styles.gpsButton} onPress={() => updateLocation()}>
+                            <Icon name="locate-outline" size={20} color="#fff" />
+                        </TouchableOpacity>
+                    </View>
+                </View>
+
+            </ScrollView>
 
             {/* Navigation Buttons */}
-            <View style={styles.buttonRow}>                
-                {step > 1 && (                    
+            <View style={styles.buttonRow}>
+
+                {/* Submit Button */}
+                <TouchableOpacity style={styles.nextButton} onPress={handleSubmitandStartMeeting}>
+                    <Text style={[styles.buttonText, { color: '#fff' }]}>Submit and Start Meeting</Text>
+                </TouchableOpacity>
+
+                {/* if you want to use steps then use this */}
+                {/* {step > 1 && (
                     <TouchableOpacity style={styles.prevButton} onPress={prevStep}>
                         <Text style={[styles.buttonText, { color: '#FF7A00' }]}>Previous</Text>
                     </TouchableOpacity>
                 )}
                 {step < steps.length ? (
                     <>
-                    <TouchableOpacity style={styles.nextButton} onPress={nextStep}>
-                        <Text style={[styles.buttonText, { color: '#fff' }]}>Next</Text>
-                    </TouchableOpacity>
+                        <TouchableOpacity style={styles.nextButton} onPress={nextStep}>
+                            <Text style={[styles.buttonText, { color: '#fff' }]}>Next</Text>
+                        </TouchableOpacity>
                     </>
                 ) : (
                     <TouchableOpacity style={styles.nextButton} onPress={handleSubmit}>
                         <Text style={[styles.buttonText, { color: '#fff' }]}>Submit</Text>
                     </TouchableOpacity>
-                )}
+                )} */}
             </View>
         </View>
     );
