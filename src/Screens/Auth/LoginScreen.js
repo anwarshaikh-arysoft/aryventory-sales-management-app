@@ -19,8 +19,8 @@ import Icon from 'react-native-vector-icons/Feather';
 import ActionButton from '../../components/ActionButton';
 
 export default function LoginScreen({ navigation }) {
-  const [email, setEmail] = useState('anwar.shaikh@ary-soft.com'); // default for testing
-  const [password, setPassword] = useState('arysoft123');
+  const [email, setEmail] = useState(''); // default for testing
+  const [password, setPassword] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [secureText, setSecureText] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -117,13 +117,13 @@ export default function LoginScreen({ navigation }) {
             <ActivityIndicator size="small" color="#FF7A00" style={{ marginTop: 10 }} />
           )}
 
-          <Text style={styles.footerText} onPress={() => navigation.navigate('Register')}>
+          {/* <Text style={styles.footerText} onPress={() => navigation.navigate('Register')}>
             Don’t have an account? <Text style={styles.link}>Sign Up.</Text>
           </Text>
 
           <TouchableOpacity onPress={() => navigation.navigate('ForgotPasswordScreen')}>
             <Text style={styles.forgotLink}>Forgot Password</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
