@@ -61,7 +61,7 @@ export default function AppNavigator() {
             headerTitleAlign: 'center',
             headerTitleStyle: { fontWeight: 'medium', fontSize: 18 },
             headerBackTitleVisible: false,
-            // Keep Android status bar non-translucent so the header calculates height correctly
+            // Consistent status bar configuration
             statusBarTranslucent: false,
             statusBarStyle: 'dark',
             statusBarColor: '#F6F6F6',
@@ -82,8 +82,8 @@ export default function AppNavigator() {
         >
           {user ? (
             <>
-              <Stack.Screen options={{ headerShown: false, headerTransparent: true, statusBarTranslucent: true, statusBarStyle: 'light', }} name="Home" component={HomeScreen} />
-              <Stack.Screen options={{ title: 'Profile', statusBarColor: '#111214', statusBarStyle: 'light', headerStyle: { backgroundColor: '#111214' }, headerTintColor: '#fff', }} name="profile-screen" component={ProfileScreen} />
+              <Stack.Screen options={{ headerShown: false, headerTransparent: true, statusBarTranslucent: true, statusBarStyle: 'light', statusBarColor: '#111214' }} name="Home" component={HomeScreen} />
+              <Stack.Screen options={{ title: 'Profile', statusBarColor: '#111214', statusBarStyle: 'light', headerStyle: { backgroundColor: '#111214' }, headerTintColor: '#fff' }} name="profile-screen" component={ProfileScreen} />
               <Stack.Screen options={{ title: 'Lead List' }} name="leadlist" component={LeadsList} />
               <Stack.Screen options={{ title: 'Lead' }} name="showlead" component={ShowLead} />
               <Stack.Screen options={{ title: 'Add Lead' }} name="addlead" component={AddLead} />

@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   TextInput,
   Modal,
-  StatusBar,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 
@@ -80,7 +79,6 @@ const MeetingTimerScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#f5f5f5" />
       
       {/* Header */}
       <View style={styles.header}>

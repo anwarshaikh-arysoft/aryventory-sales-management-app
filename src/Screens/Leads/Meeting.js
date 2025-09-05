@@ -8,7 +8,6 @@ import {
   TextInput,
   Modal,
   FlatList,
-  StatusBar,
   ScrollView,
   Image,
   Alert,
@@ -733,7 +732,6 @@ const MeetingTimerScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F6F6F6" />
 
       {leadSelector}
 

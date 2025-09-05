@@ -10,7 +10,6 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
-  StatusBar,
 } from 'react-native';
 
 import { Ionicons, MaterialIcons } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
@@ -246,7 +245,6 @@ function handleNavigation(){
   return (
     <View style={{ flex: 1 }}>
       
-      <StatusBar barStyle="light-content" backgroundColor="#111214" />
 
       <ScrollView
         refreshControl={

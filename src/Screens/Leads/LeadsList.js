@@ -8,7 +8,6 @@ import {
   StyleSheet,
   FlatList,
   SafeAreaView,
-  StatusBar,
   ActivityIndicator,
   RefreshControl,
   Platform,
@@ -396,7 +395,6 @@ export default function LeadsList(props) {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.primaryBackground ?? '#F6F6F6' }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.primaryBackground ?? '#F6F6F6'} />
 
       {/* Search */}
       <View style={styles.searchWrap}>

@@ -9,7 +9,6 @@ import {
     ScrollView,
     Alert,
     Button,
-    StatusBar,
     Platform
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -345,12 +344,6 @@ export default function AddLead({ navigation }) {
 
     return (
         <View style={[styles.container, { backgroundColor: colors.primaryBackground }]}>
-
-            <StatusBar
-                translucent={true}        // Allows content to go under it
-                backgroundColor="transparent" // Makes background see-through
-                barStyle="dark-content"   // or "light-content" depending on your design
-            />
 
             {/* Stepper */}
             <View style={styles.progressContainer}>

@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   Image,
   Modal,
-  StatusBar,
   Switch,
   ScrollView,
 } from 'react-native';
@@ -77,7 +76,6 @@ const ProfileScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#111827" />
       
       {/* Header Section */}
       <View style={styles.headerSection}>

@@ -10,7 +10,6 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
-  StatusBar,
 } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -252,7 +251,6 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={{ flex: 1 }}>
 
-      <StatusBar barStyle="light-content" backgroundColor="#111214" />
 
       <ScrollView
         refreshControl={

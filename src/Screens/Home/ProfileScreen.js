@@ -7,7 +7,6 @@ import {
   SafeAreaView,
   Image,
   Modal,
-  StatusBar,
   Switch,
   ScrollView,
   Button,
@@ -219,7 +218,6 @@ const ProfileScreen = ({ navigation }) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#111214" />
 
       {/* Header */}
       <View>

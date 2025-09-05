@@ -8,7 +8,6 @@ import {
   StyleSheet,
   FlatList,
   SafeAreaView,
-  StatusBar,
 } from 'react-native';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { colors } from '../../../theme/colors';
@@ -176,7 +175,6 @@ export default function LeadsList({ navigation }) {
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: colors.primaryBackground ?? '#F6F6F6' }]}>
-      <StatusBar barStyle="dark-content" backgroundColor={colors.primaryBackground ?? '#F6F6F6'} />
 
       {/* Search */}
       <View style={styles.searchWrap}>
