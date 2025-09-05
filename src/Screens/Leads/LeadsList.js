@@ -19,14 +19,7 @@ import { colors } from '../../../theme/colors';
 import BASE_URL from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { set } from 'date-fns';
-
-const TABS = [
-  { key: 'all', label: 'All', count: 0 },
-  { key: 'today', label: 'Today', count: 0 },
-  { key: 'interested', label: 'Interested', count: 0 },
-  { key: 'sold', label: 'Sold', count: 0 },
-  { key: 'not_interested', label: 'Not Interested', count: 0 },
-];
+import getLeadStatuses from '../../utils/getLeadStatuses';
 
 // ---- helpers -------------------------------------------------------------
 const ymd = (d) => {
@@ -90,6 +83,8 @@ export default function LeadsList(props) {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [showDateFilter, setShowDateFilter] = useState(false);
+  // Lead statuses
+  const [leadStatuses, setLeadStatuses] = useState([]);
 
   const debounced = useRef(null);
   const isInitialMount = useRef(true);
@@ -120,6 +115,7 @@ export default function LeadsList(props) {
   // Initial load
   useEffect(() => {
     fetchLeads(1);
+    fetchLeadStatuses();
   }, []);
 
   const buildQueryParams = useCallback((pageNum = 1) => {
@@ -147,15 +143,8 @@ export default function LeadsList(props) {
       }
     }
 
-    if (activeTab === 'interested') {
-      // Filter for interested leads - you may need to adjust status ID based on your backend
-      params.set('lead_status', '1'); // Assuming 1 is for interested
-    }
-    if (activeTab === 'sold') {
-      params.set('lead_status', '5'); // Based on the sample data, 5 is for "Sold"
-    }
-    if (activeTab === 'not_interested') {
-      params.set('lead_status', '2'); // Based on the sample data, 2 is for "Not Interested"
+    if (activeTab !== 'all') {
+      params.set('lead_status', activeTab);
     }
 
     // optional: default sort
@@ -164,6 +153,12 @@ export default function LeadsList(props) {
 
     return params.toString();
   }, [query, activeTab, startDate, endDate]);
+
+  // Fetch lead statuses
+  const fetchLeadStatuses = useCallback(async () => {
+    const leadStatuses = await getLeadStatuses();
+    setLeadStatuses(leadStatuses);
+  }, []);
 
   const fetchLeads = useCallback(async (pageNum = 1) => {
     if (loading) return;
@@ -181,7 +176,7 @@ export default function LeadsList(props) {
           Accept: 'application/json',
         },
         signal: controller.signal,
-      });
+      });      
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -218,12 +213,13 @@ export default function LeadsList(props) {
 
     // return a cancel function for safety (optional, see below)
     return () => controller?.abort();
-  }, [buildQueryParams, loading, refreshing]);
+  }, [buildQueryParams, loading, refreshing, leadStatuses]);
 
   const onRefresh = () => {
     setRefreshing(true);
     setItems([]);
     fetchLeads(1);
+    fetchLeadStatuses();
   };
 
   // Date picker handlers
@@ -284,6 +280,8 @@ export default function LeadsList(props) {
     // Navigate to meeting screen
     // navigation.navigate('Meeting', { leadId: lead.id });
   };
+
+  const TABS = [{ key: 'all', label: 'All', count: 0 }, { key: 'today', label: 'Today', count: 0 }, ...leadStatuses.map(status => ({ key: status.id, label: status.name, count: 0 }))];
 
   const renderTab = t => {
     const isActive = activeTab === t.key;

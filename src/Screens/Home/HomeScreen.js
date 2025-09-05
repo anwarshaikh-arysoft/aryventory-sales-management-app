@@ -29,7 +29,6 @@ import BASE_URL from '../../config';
 
 export default function HomeScreen({ navigation }) {
 
-  const [test, setTest] = useState(false)
 
   // Screen Refresh state
   const [refreshing, setRefreshing] = useState(false);
@@ -213,6 +212,7 @@ export default function HomeScreen({ navigation }) {
   // Fetch stats on component mount   
   useEffect(() => {
     fetchStats();
+    console.log('fetchStats', stats);
   }, []);
 
   const fetchLeads = async (page = 1) => {
@@ -222,7 +222,7 @@ export default function HomeScreen({ navigation }) {
       setLeads(data.data); // `data` is the Laravel paginated object
       setPagination({
         current_page: data.current_page,
-        last_page: data.last_page,
+        last_page: data.last_page,        
       });
     } finally {
       setLoading(false);
@@ -399,7 +399,7 @@ export default function HomeScreen({ navigation }) {
             <View style={[styles.recentActivityHeader]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, }}>
                 <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
-                <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{leads.length}</Text>
+                <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{ leads.filter((lead) => lead.lead_status_data?.name != 'Sold' && lead.lead_status_data?.name != 'Not Interested').length}</Text>
               </View>
               <TouchableOpacity style={{ backgroundColor: '#dbeafe', padding: 8, borderRadius: 12, }} onPress={() => navigation.navigate('leadlist')}>
                 <Text style={{ color: '#2563eb', fontWeight: 'bold' }}>View All</Text>
@@ -410,7 +410,8 @@ export default function HomeScreen({ navigation }) {
               <ActivityIndicator size="large" color="#000" />
             ) : (
               <>
-                {leads.map((lead, index) => (
+                {/* Remove leads which are sold and not interested */}                              
+                {leads.filter((lead) => lead.lead_status_data?.name != 'Sold' && lead.lead_status_data?.name != 'Not Interested').map((lead, index) => (
                   <TouchableOpacity
                     key={index}
                     title={lead.contact_person}

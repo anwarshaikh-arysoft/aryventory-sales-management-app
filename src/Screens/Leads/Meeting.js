@@ -21,16 +21,16 @@ import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { getLeadsByFollowUpDate } from '../../utils/getLeadsByFollowUpDate';
 import { ArrowRight, Icon, Camera } from 'lucide-react-native';
 import { takeSelfie } from '../../utils/TakeSelfie';
-import { startMeetingRecording, stopMeetingRecording, buildAudioFormPart, getRecordingStatus } from '../../utils/voiceRecording';
+import { startMeetingRecording, stopMeetingRecording, pauseMeetingRecording, resumeMeetingRecording, buildAudioFormPart, getRecordingStatus } from '../../utils/voiceRecording';
 import { captureLocation } from '../../utils/LocationCapture';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import BASE_URL from '../../config';
 import DateTimePicker from "@react-native-community/datetimepicker";
 
 // Memoized Timer Component
-const MeetingTimer = memo(({ startTime, isActive }) => {
+const MeetingTimer = memo(({ startTime, isActive, isPaused, pausedTotalMs = 0, pauseStartedAt = null }) => {
   const [time, setTime] = useState(0);
   const timerIdRef = useRef(null);
   const startMsRef = useRef(null);
@@ -52,10 +52,15 @@ const MeetingTimer = memo(({ startTime, isActive }) => {
     // Clear any previous interval
     if (timerIdRef.current) clearInterval(timerIdRef.current);
 
-    const tick = () => setTime(Math.floor((Date.now() - startMsRef.current) / 1000));
+    const tick = () => {
+      const dynamicPaused = isPaused && pauseStartedAt ? (Date.now() - pauseStartedAt) : 0;
+      const totalPausedMs = (pausedTotalMs || 0) + dynamicPaused;
+      const elapsedMs = Date.now() - startMsRef.current - totalPausedMs;
+      setTime(Math.max(0, Math.floor(elapsedMs / 1000)));
+    };
     tick(); // immediate update
     timerIdRef.current = setInterval(tick, 1000);
-  }, []);
+  }, [isPaused, pausedTotalMs, pauseStartedAt]);
 
   // Pause Timer
   const pauseTimer = useCallback(() => {
@@ -75,11 +80,15 @@ const MeetingTimer = memo(({ startTime, isActive }) => {
   // Effect to handle timer state changes
   useEffect(() => {
     if (isActive && startTime) {
-      startTimer(startTime);
+      if (isPaused) {
+        pauseTimer();
+      } else {
+        startTimer(startTime);
+      }
     } else {
       resetTimer();
     }
-  }, [isActive, startTime, startTimer, resetTimer]);
+  }, [isActive, isPaused, startTime, startTimer, resetTimer, pauseTimer]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -87,7 +96,7 @@ const MeetingTimer = memo(({ startTime, isActive }) => {
   }, [pauseTimer]);
 
   return (
-    <View style={{ backgroundColor: '#fff', borderRadius: 15, padding: 20 }}>
+    <View style={{ backgroundColor: '#fff', borderRadius: 15, padding: 20, marginTop: 20 }}>
       <Text style={styles.timerDisplay}>{formatTime(time)}</Text>
     </View>
   );
@@ -308,6 +317,7 @@ const MeetingTimerScreen = () => {
   const [loadingAction, setLoadingAction] = useState(null);
   const [meetingActive, setMeetingActive] = useState(false);
   const [meetingStartTime, setMeetingStartTime] = useState(null);
+  const [isRecordingPaused, setIsRecordingPaused] = useState(false);
   const [nextFollowUpDate, setNextFollowUpDate] = useState(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
@@ -325,6 +335,8 @@ const MeetingTimerScreen = () => {
   // Meeting Controls
   const [notes, setNotes] = useState('');
   const [recordingUri, setRecordingUri] = useState(null);
+  const [pausedTotalMs, setPausedTotalMs] = useState(0);
+  const [pauseStartedAt, setPauseStartedAt] = useState(null);
 
   // Leads
   const [leads, setLeads] = useState([]);
@@ -339,19 +351,51 @@ const MeetingTimerScreen = () => {
   // Memoized callbacks to prevent unnecessary re-renders
   const handleStatusSelect = useCallback((status) => {
     setSelectedStatus(status);
-  }, []);
+    if (selectedLead?.id) {
+      const draftKey = `meeting_draft_${selectedLead.id}`;
+      AsyncStorage.getItem(draftKey).then((s) => {
+        const prev = s ? JSON.parse(s) : {};
+        const next = { ...prev, selectedStatus: status };
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [selectedLead?.id]);
 
   const handlePlanSelect = useCallback((plan) => {
     setSelectedPlan(plan);
-  }, []);
+    if (selectedLead?.id) {
+      const draftKey = `meeting_draft_${selectedLead.id}`;
+      AsyncStorage.getItem(draftKey).then((s) => {
+        const prev = s ? JSON.parse(s) : {};
+        const next = { ...prev, selectedPlan: plan };
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [selectedLead?.id]);
 
   const handleDateChange = useCallback((date) => {
     setNextFollowUpDate(date);
-  }, []);
+    if (selectedLead?.id) {
+      const draftKey = `meeting_draft_${selectedLead.id}`;
+      AsyncStorage.getItem(draftKey).then((s) => {
+        const prev = s ? JSON.parse(s) : {};
+        const next = { ...prev, nextFollowUpDate: date?.toISOString() || null };
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [selectedLead?.id]);
 
   const handleNotesChange = useCallback((text) => {
     setNotes(text);
-  }, []);
+    if (selectedLead?.id) {
+      const draftKey = `meeting_draft_${selectedLead.id}`;
+      AsyncStorage.getItem(draftKey).then((s) => {
+        const prev = s ? JSON.parse(s) : {};
+        const next = { ...prev, notes: text };
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [selectedLead?.id]);
 
   // Fetch meeting outcomes
   const fetchMeetingOutcomes = useCallback(async () => {
@@ -453,12 +497,6 @@ const MeetingTimerScreen = () => {
             return;
           }
 
-          if (!nextFollowUpDate && selectedStatus.name !== 'Sold') {
-            Alert.alert('Error', 'Please set a next follow up date');
-            setLoadingAction(false);
-            return;
-          }
-
           formData.append('lead_status_id', String(statusId));
 
           const { uri } = await stopMeetingRecording();
@@ -471,7 +509,13 @@ const MeetingTimerScreen = () => {
 
           if (selectedPlan) formData.append('plan_interest', selectedPlan.name);
           if (recordingUri) formData.append('recording', { uri: recordingUri, type: 'audio/m4a', name: 'meeting.m4a' });
-          if (notes) formData.append('notes', notes);
+          if (notes) {formData.append('notes', notes)} else {formData.append('notes', '')}
+
+          // Clear persisted draft on successful end
+          try { await AsyncStorage.removeItem(`meeting_draft_${selectedLead.id}`); } catch {}
+          setPausedTotalMs(0);
+          setPauseStartedAt(null);
+          setIsRecordingPaused(false);
         }
 
         const res = await axios.post(`${BASE_URL}${endpoint}`, formData, {
@@ -520,12 +564,67 @@ const MeetingTimerScreen = () => {
         setMeetingActive(false);
         setMeetingStartTime(null);
       }
+
+      // Also sync local recording paused state if there is an ongoing recording
+      const status = await getRecordingStatus();
+      if (status) {
+        setIsRecordingPaused(!status.isRecording);
+      } else {
+        setIsRecordingPaused(false);
+      }
     } catch (err) {
       console.error('Meeting status error:', err);
     } finally {
       setLoadingAction(false);
     }
   }, [selectedLead?.id]);
+
+  const onPauseRecording = useCallback(async () => {
+    const res = await pauseMeetingRecording();
+    if (res?.paused !== undefined) {
+      // mark paused state and start accumulating paused duration
+      setIsRecordingPaused(!!res.paused);
+      setPauseStartedAt(Date.now());
+      // persist draft state
+      if (selectedLead?.id) {
+        const draft = {
+          selectedStatus,
+          selectedPlan,
+          notes,
+          nextFollowUpDate: nextFollowUpDate ? nextFollowUpDate.toISOString() : null,
+          isRecordingPaused: true,
+          pausedTotalMs,
+          pauseStartedAt: Date.now(),
+        };
+        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch {}
+      }
+    }
+  }, [selectedLead?.id, selectedStatus, selectedPlan, notes, nextFollowUpDate, pausedTotalMs]);
+
+  const onResumeRecording = useCallback(async () => {
+    const res = await resumeMeetingRecording();
+    if (res?.resumed !== undefined) {
+      // add the last pause segment to total and clear start
+      if (pauseStartedAt) {
+        setPausedTotalMs((prev) => prev + (Date.now() - pauseStartedAt));
+      }
+      setPauseStartedAt(null);
+      setIsRecordingPaused(!res.resumed ? true : false);
+      // persist draft state
+      if (selectedLead?.id) {
+        const draft = {
+          selectedStatus,
+          selectedPlan,
+          notes,
+          nextFollowUpDate: nextFollowUpDate ? nextFollowUpDate.toISOString() : null,
+          isRecordingPaused: false,
+          pausedTotalMs: (pauseStartedAt ? pausedTotalMs + (Date.now() - pauseStartedAt) : pausedTotalMs),
+          pauseStartedAt: null,
+        };
+        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch {}
+      }
+    }
+  }, [selectedLead?.id, selectedStatus, selectedPlan, notes, nextFollowUpDate, pausedTotalMs, pauseStartedAt]);
 
   // Effects
   useEffect(() => {
@@ -546,8 +645,46 @@ const MeetingTimerScreen = () => {
   useEffect(() => {
     if (selectedLead) {
       fetchMeetingStatus();
+      // restore draft per lead
+      const draftKey = `meeting_draft_${selectedLead.id}`;
+      AsyncStorage.getItem(draftKey).then((s) => {
+        if (!s) return;
+        try {
+          const draft = JSON.parse(s);
+          if (draft.selectedStatus) setSelectedStatus(draft.selectedStatus);
+          if (draft.selectedPlan) setSelectedPlan(draft.selectedPlan);
+          if (typeof draft.notes === 'string') setNotes(draft.notes);
+          if (draft.nextFollowUpDate) setNextFollowUpDate(new Date(draft.nextFollowUpDate));
+          if (typeof draft.isRecordingPaused === 'boolean') setIsRecordingPaused(draft.isRecordingPaused);
+          if (typeof draft.pausedTotalMs === 'number') setPausedTotalMs(draft.pausedTotalMs);
+          if (draft.pauseStartedAt) setPauseStartedAt(draft.pauseStartedAt);
+        } catch {}
+      }).catch(() => {});
     }
   }, [selectedLead, fetchMeetingStatus]);
+
+  // Also restore draft on screen focus (covers cases where component isn't unmounted)
+  useFocusEffect(
+    useCallback(() => {
+      if (!selectedLead?.id) return;
+      let cancelled = false;
+      const draftKey = `meeting_draft_${selectedLead.id}`;
+      AsyncStorage.getItem(draftKey).then((s) => {
+        if (cancelled || !s) return;
+        try {
+          const draft = JSON.parse(s);
+          if (draft.selectedStatus) setSelectedStatus(draft.selectedStatus);
+          if (draft.selectedPlan) setSelectedPlan(draft.selectedPlan);
+          if (typeof draft.notes === 'string') setNotes(draft.notes);
+          if (draft.nextFollowUpDate) setNextFollowUpDate(new Date(draft.nextFollowUpDate));
+          if (typeof draft.isRecordingPaused === 'boolean') setIsRecordingPaused(draft.isRecordingPaused);
+          if (typeof draft.pausedTotalMs === 'number') setPausedTotalMs(draft.pausedTotalMs);
+          if (draft.pauseStartedAt) setPauseStartedAt(draft.pauseStartedAt);
+        } catch {}
+      }).catch(() => {});
+      return () => { cancelled = true; };
+    }, [selectedLead?.id])
+  );
 
   // Memoized components to prevent unnecessary renders
   const leadSelector = useMemo(() => (
@@ -578,14 +715,21 @@ const MeetingTimerScreen = () => {
           <Text style={styles.meetingLocation}>At {selectedLead?.shop_name}</Text>
         </View>
         <View style={styles.recordingControls}>
-          <TouchableOpacity style={styles.recordButton}>
-            <MaterialIcons name="mic" size={16} color="#ff9500" />
-            <Text style={styles.recordText}>Recording...</Text>
-          </TouchableOpacity>
+          {isRecordingPaused ? (
+            <TouchableOpacity style={styles.recordButton} onPress={onResumeRecording}>
+              <MaterialIcons name="play-arrow" size={16} color="#4CAF50" />
+              <Text style={styles.recordText}>Resume</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.recordButton} onPress={onPauseRecording}>
+              <MaterialIcons name="pause" size={16} color="#ff9500" />
+              <Text style={styles.recordText}>Pause</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
-  ), [selectedLead?.contact_person, selectedLead?.shop_name]);
+  ), [selectedLead?.contact_person, selectedLead?.shop_name, isRecordingPaused, onPauseRecording, onResumeRecording]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -617,7 +761,10 @@ const MeetingTimerScreen = () => {
                     {/* Timer Component - Isolated to prevent re-renders */}
                     <MeetingTimer 
                       startTime={meetingStartTime} 
-                      isActive={meetingActive} 
+                      isActive={meetingActive}
+                      isPaused={isRecordingPaused}
+                      pausedTotalMs={pausedTotalMs}
+                      pauseStartedAt={pauseStartedAt}
                     />
 
                     {/* Status Selector */}

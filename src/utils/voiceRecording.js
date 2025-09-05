@@ -89,6 +89,39 @@ export async function stopMeetingRecording() {
 }
 
 /**
+ * Pause recording (call this when meeting is paused).
+ */
+export async function pauseMeetingRecording() {
+    if (!recordingInstance) {
+        return { paused: false, durationMillis: 0, reason: 'no-instance' };
+    }
+    const before = await recordingInstance.getStatusAsync().catch(() => null);
+    if (!before?.isRecording) {
+        return { paused: true, durationMillis: before?.durationMillis ?? 0 };
+    }
+    await recordingInstance.pauseAsync();
+    const after = await recordingInstance.getStatusAsync().catch(() => null);
+    return { paused: !after?.isRecording, durationMillis: after?.durationMillis ?? 0 };
+}
+
+/**
+ * Resume recording if paused.
+ */
+export async function resumeMeetingRecording() {
+    if (!recordingInstance) {
+        return { resumed: false, durationMillis: 0, reason: 'no-instance' };
+    }
+    const status = await recordingInstance.getStatusAsync().catch(() => null);
+    if (status?.isRecording) {
+        return { resumed: true, durationMillis: status?.durationMillis ?? 0 };
+    }
+    await recordingInstance.startAsync();
+    const after = await recordingInstance.getStatusAsync().catch(() => null);
+    return { resumed: !!after?.isRecording, durationMillis: after?.durationMillis ?? 0 };
+}
+
+
+/**
  * Cancel an ongoing recording without saving (optional helper).
  */
 export async function cancelMeetingRecording() {

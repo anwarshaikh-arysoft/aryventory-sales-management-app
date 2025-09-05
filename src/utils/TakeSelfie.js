@@ -14,7 +14,7 @@ export async function takeSelfie() {
     cameraType: ImagePicker.CameraType.front,
     // allowsEditing: true,
     // aspect: [1, 2],
-    quality: 0.7,
+    quality: 0.4,
   });
 
   if (!result.canceled) {
