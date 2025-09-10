@@ -82,16 +82,22 @@ export default function HomeScreen({ navigation }) {
 
   // Send shift actions
   const sendShiftAction = async (endpoint, actionKey) => {
+    
     setLoadingAction(actionKey);
 
     let selfieImage = null;
     let locationCoords = null;
 
     try {
+      // Upload selfie to S3
+
+      // upload start time
       if (endpoint === '/shift/start' || endpoint === '/shift/end') {
         selfieImage = await takeSelfie();
         locationCoords = await captureLocation();
 
+        const uploadStartTime = new Date();
+        
         if (!selfieImage || !locationCoords) {
           Alert.alert("Error", "Please capture selfie and location");
           return;
@@ -113,7 +119,14 @@ export default function HomeScreen({ navigation }) {
         });
 
         Alert.alert('Success', res.data.message);
+
+        // Calculate the time taken for the action in seconds
+        const timeTaken = (new Date().getTime() - uploadStartTime.getTime()) / 1000;
+        console.log('Time taken for the action:', actionKey, timeTaken, 'seconds');
+
       } else {
+
+        const breakStartTime = new Date();
         const token = await AsyncStorage.getItem('token');
         if (!token) return Alert.alert('Error', 'No token found');
 
@@ -124,6 +137,10 @@ export default function HomeScreen({ navigation }) {
         });
 
         Alert.alert('Success', res.data.message);
+
+        // Calculate the time taken for the action in seconds
+        const timeTaken = (new Date().getTime() - breakStartTime.getTime()) / 1000;
+        console.log('Time taken for the action:', actionKey, timeTaken, 'seconds');
       }
     } catch (err) {
       console.error(err);
@@ -132,7 +149,7 @@ export default function HomeScreen({ navigation }) {
       setLoadingAction(null);
       // Re-fetch after action
       await fetchShiftStatus();
-    }
+    }    
   };
 
 
@@ -164,7 +181,7 @@ export default function HomeScreen({ navigation }) {
       setShiftActive(data.shift_started && !data.shift_ended);
       setBreakActive(data.break_started && !data.break_ended);
       if (data.shift_started) setShiftStartTime(new Date(data.shiftStart).getTime());
-      if (data.break_started) setBreakStartTime(new Date(data.breakStart).getTime());
+      if (data.break_started) setBreakStartTime(new Date(data.breakStart).getTime());      
 
       if (data.shift_started && !data.shift_ended) {
         setShiftElapsed(Math.floor(data.shift_timer));
@@ -172,8 +189,14 @@ export default function HomeScreen({ navigation }) {
         setShiftElapsed(0);
       }
 
-      if (data.break_started && !data.break_ended) {
-        setBreakElapsed(Math.floor(data.break_timer));
+      // if (data.break_started && !data.break_ended) {
+      //   setBreakElapsed(Math.floor(data.break_timer));
+      // } else {
+      //   setBreakElapsed(0);
+      // }
+
+      if(data.total_break_time > 0){
+        setBreakElapsed(Math.floor(data.total_break_time * 60));        
       } else {
         setBreakElapsed(0);
       }
@@ -366,12 +389,13 @@ export default function HomeScreen({ navigation }) {
 
 
           {/* Timers */}
-          {shiftActive && (
+          {(
             <Text style={{ marginTop: 8, fontWeight: 'bold' }}>
               Shift Time: {formatTime(shiftElapsed)}
             </Text>
           )}
-          {breakActive && (
+          {/* {breakActive && ( */}
+          {(
             <Text style={{ marginTop: 4, fontWeight: 'bold', color: 'red' }}>
               Break Time: {formatTime(breakElapsed)}
             </Text>
