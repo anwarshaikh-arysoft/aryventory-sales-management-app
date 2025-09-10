@@ -178,6 +178,12 @@ export default function HomeScreen({ navigation }) {
         setBreakElapsed(0);
       }
 
+      if(data.total_break_time > 0){
+        setBreakElapsed(Math.floor(data.total_break_time * 60));        
+      } else {
+        setBreakElapsed(0);
+      }
+
     } catch (err) {
       console.error('Error fetching shift status:', err);
     }
@@ -366,12 +372,12 @@ export default function HomeScreen({ navigation }) {
 
 
           {/* Timers */}
-          {shiftActive && (
+          {(
             <Text style={{ marginTop: 8, fontWeight: 'bold' }}>
               Shift Time: {formatTime(shiftElapsed)}
             </Text>
           )}
-          {breakActive && (
+          {(
             <Text style={{ marginTop: 4, fontWeight: 'bold', color: 'red' }}>
               Break Time: {formatTime(breakElapsed)}
             </Text>
