@@ -4,6 +4,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ThemeProvider } from '../../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { MeetingProvider } from '../context/MeetingContext';
 import Toast from 'react-native-toast-message';
 
 import LoginScreen from '../Screens/Auth/LoginScreen';
@@ -31,6 +32,7 @@ import AddLead from '../Screens/Leads/AddLead';
 import ProfileScreen from '../Screens/Home/ProfileScreen';
 import ShiftHistoryScreen from '../ShiftHistoryScreen';
 import LeadsList from '../Screens/Leads/LeadsList';
+import MeetingTimerOverlay from '../components/MeetingTimerOverlay';
 
 
 
@@ -48,7 +50,8 @@ export default function AppNavigator() {
   }
 
   return (
-      <NavigationContainer>
+    <MeetingProvider>
+      <NavigationContainer>        
         <Stack.Navigator
           screenOptions={{
             headerShown: true,
@@ -109,7 +112,9 @@ export default function AppNavigator() {
             </>
           )}
         </Stack.Navigator>
+        <MeetingTimerOverlay />
         <Toast />
       </NavigationContainer>
+    </MeetingProvider>
   );
 }
