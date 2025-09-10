@@ -9,11 +9,7 @@ import {
     ScrollView,
     Alert,
     Button,
-    Platform,
-    Modal,
-    FlatList,
-    ActivityIndicator,
-    Dimensions
+    Platform
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Picker } from '@react-native-picker/picker';
@@ -23,7 +19,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureLocation } from '../../utils/LocationCapture';
 import { colors } from '../../../theme/colors';
 import axios from 'axios';
-import MapView, { Marker } from 'react-native-maps';
 
 export default function AddLead({ navigation }) {
     const steps = ['Shop Information', 'Location Details', 'Business Details'];
@@ -32,22 +27,6 @@ export default function AddLead({ navigation }) {
 
     const [date, setDate] = useState(new Date());
     const [show, setShow] = useState(false);
-    
-    // Location picker modal states
-    const [locationModalVisible, setLocationModalVisible] = useState(false);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [selectedLocation, setSelectedLocation] = useState(null);
-    const [mapRegion, setMapRegion] = useState({
-        latitude: 19.0760, // Default to Mumbai
-        longitude: 72.8777,
-        latitudeDelta: 0.0922,
-        longitudeDelta: 0.0421,
-    });
-    const [manualLatitude, setManualLatitude] = useState('');
-    const [manualLongitude, setManualLongitude] = useState('');
-    const [showManualEntry, setShowManualEntry] = useState(false);
 
     //dropdown data states
     const [business_type, setBusinessType] = useState([]);
@@ -158,184 +137,6 @@ export default function AddLead({ navigation }) {
                 ...prev,
                 gps_location: locationString
             }));
-        }
-    };
-
-    // Location picker functions
-    const openLocationPicker = () => {
-        setLocationModalVisible(true);
-        // If there's already a GPS location, center the map on it
-        if (formData.gps_location) {
-            const [lat, lng] = formData.gps_location.split(',');
-            if (lat && lng) {
-                setMapRegion({
-                    latitude: parseFloat(lat),
-                    longitude: parseFloat(lng),
-                    latitudeDelta: 0.0922,
-                    longitudeDelta: 0.0421,
-                });
-                setSelectedLocation({
-                    latitude: parseFloat(lat),
-                    longitude: parseFloat(lng)
-                });
-            }
-        }
-    };
-
-    const searchLocation = async (query) => {
-        if (query.length < 3) {
-            setSearchResults([]);
-            return;
-        }
-
-        setIsSearching(true);
-        try {
-            // Try multiple geocoding services for better reliability
-            const searchUrl = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&countrycodes=in&addressdetails=1`;
-            
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-            
-            const response = await fetch(searchUrl, {
-                method: 'GET',
-                headers: {
-                    'User-Agent': 'AryventoryApp/1.0',
-                    'Accept': 'application/json',
-                },
-                signal: controller.signal,
-            });
-            
-            clearTimeout(timeoutId);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
-            const contentType = response.headers.get('content-type');
-            if (!contentType || !contentType.includes('application/json')) {
-                throw new Error('Invalid response format');
-            }
-            
-            const data = await response.json();
-            
-            if (Array.isArray(data)) {
-                setSearchResults(data);
-            } else {
-                setSearchResults([]);
-            }
-        } catch (error) {
-            console.error('Location search error:', error);
-            
-            // Provide fallback options
-            if (error.name === 'AbortError') {
-                Alert.alert('Search Timeout', 'Location search timed out. Please try again or use the map to select a location.');
-            } else if (error.message.includes('Network request failed')) {
-                Alert.alert('Network Error', 'Unable to search locations. Please check your internet connection or use the map to select a location.');
-            } else {
-                Alert.alert('Search Error', 'Unable to search locations. Please use the map to select a location manually.');
-            }
-            
-            setSearchResults([]);
-        } finally {
-            setIsSearching(false);
-        }
-    };
-
-    const selectSearchResult = (result) => {
-        const coords = {
-            latitude: parseFloat(result.lat),
-            longitude: parseFloat(result.lon)
-        };
-        setSelectedLocation(coords);
-        setMapRegion({
-            ...coords,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-        });
-        setSearchQuery(result.display_name);
-        setSearchResults([]);
-    };
-
-    const onMapPress = (event) => {
-        const coords = event.nativeEvent.coordinate;
-        setSelectedLocation(coords);
-        setMapRegion({
-            ...coords,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-        });
-    };
-
-    const confirmLocation = () => {
-        if (selectedLocation) {
-            const locationString = `${selectedLocation.latitude},${selectedLocation.longitude}`;
-            setFormData(prev => ({
-                ...prev,
-                gps_location: locationString
-            }));
-            setLocationModalVisible(false);
-            setSearchQuery('');
-            setSearchResults([]);
-        } else {
-            Alert.alert('No Location Selected', 'Please select a location on the map or search for an address.');
-        }
-    };
-
-    const getCurrentLocation = async () => {
-        try {
-            const coords = await captureLocation();
-            if (coords) {
-                setSelectedLocation(coords);
-                setMapRegion({
-                    ...coords,
-                    latitudeDelta: 0.01,
-                    longitudeDelta: 0.01,
-                });
-            }
-        } catch (error) {
-            Alert.alert('Error', 'Failed to get current location');
-        }
-    };
-
-    const handleManualCoordinateEntry = () => {
-        const lat = parseFloat(manualLatitude);
-        const lng = parseFloat(manualLongitude);
-        
-        if (isNaN(lat) || isNaN(lng)) {
-            Alert.alert('Invalid Coordinates', 'Please enter valid latitude and longitude values.');
-            return;
-        }
-        
-        if (lat < -90 || lat > 90) {
-            Alert.alert('Invalid Latitude', 'Latitude must be between -90 and 90 degrees.');
-            return;
-        }
-        
-        if (lng < -180 || lng > 180) {
-            Alert.alert('Invalid Longitude', 'Longitude must be between -180 and 180 degrees.');
-            return;
-        }
-        
-        const coords = { latitude: lat, longitude: lng };
-        setSelectedLocation(coords);
-        setMapRegion({
-            ...coords,
-            latitudeDelta: 0.01,
-            longitudeDelta: 0.01,
-        });
-        setShowManualEntry(false);
-        setManualLatitude('');
-        setManualLongitude('');
-    };
-
-    const toggleManualEntry = () => {
-        setShowManualEntry(!showManualEntry);
-        if (!showManualEntry) {
-            // If there's a selected location, populate the manual entry fields
-            if (selectedLocation) {
-                setManualLatitude(selectedLocation.latitude.toString());
-                setManualLongitude(selectedLocation.longitude.toString());
-            }
         }
     };
 
@@ -477,8 +278,8 @@ export default function AddLead({ navigation }) {
                                 <View style={{ flex: 1 }}>
                                     <InputField icon="navigate-outline" placeholder="GPS Location *" value={formData.gps_location} onChangeText={text => handleChange('gps_location', text)} />
                                 </View>
-                                <TouchableOpacity style={styles.gpsButton} onPress={updateLocation}>
-                                    <Icon name="map-outline" size={20} color="#fff" />
+                                <TouchableOpacity style={styles.gpsButton} onPress={() => updateLocation()}>
+                                    <Icon name="locate-outline" size={20} color="#fff" />
                                 </TouchableOpacity>
                             </View>
                         </View>
@@ -579,8 +380,8 @@ export default function AddLead({ navigation }) {
                         <View style={{ flex: 1 }}>
                             <InputField icon="navigate-outline" placeholder="GPS Location *" value={formData.gps_location} onChangeText={text => handleChange('gps_location', text)} />
                         </View>
-                        <TouchableOpacity style={styles.gpsButton} onPress={updateLocation}>
-                            <Icon name="map-outline" size={20} color="#fff" />
+                        <TouchableOpacity style={styles.gpsButton} onPress={() => updateLocation()}>
+                            <Icon name="locate-outline" size={20} color="#fff" />
                         </TouchableOpacity>
                     </View>
                 </View>
@@ -613,148 +414,6 @@ export default function AddLead({ navigation }) {
                     </TouchableOpacity>
                 )} */}
             </View>
-
-            {/* Location Picker Modal */}
-            <Modal
-                visible={locationModalVisible}
-                animationType="slide"
-                presentationStyle="pageSheet"
-                onRequestClose={() => setLocationModalVisible(false)}
-            >
-                <View style={styles.modalContainer}>
-                    {/* Modal Header */}
-                    <View style={styles.modalHeader}>
-                        <TouchableOpacity 
-                            onPress={() => setLocationModalVisible(false)}
-                            style={styles.modalCloseButton}
-                        >
-                            <Icon name="close" size={24} color="#000" />
-                        </TouchableOpacity>
-                        <Text style={styles.modalTitle}>Select Location</Text>
-                        <TouchableOpacity 
-                            onPress={confirmLocation}
-                            style={styles.modalConfirmButton}
-                        >
-                            <Text style={styles.modalConfirmText}>Confirm</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Search Bar */}
-                    <View style={styles.searchContainer}>
-                        <View style={styles.searchInputContainer}>
-                            <Icon name="search-outline" size={20} color="#999" style={styles.searchIcon} />
-                            <TextInput
-                                style={styles.searchInput}
-                                placeholder="Search for an address..."
-                                value={searchQuery}
-                                onChangeText={(text) => {
-                                    setSearchQuery(text);
-                                    searchLocation(text);
-                                }}
-                            />
-                            {isSearching && <ActivityIndicator size="small" color="#FF7A00" />}
-                        </View>
-                        <TouchableOpacity style={styles.currentLocationButton} onPress={getCurrentLocation}>
-                            <Icon name="locate-outline" size={20} color="#fff" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Manual Entry Toggle */}
-                    <View style={styles.manualEntryContainer}>
-                        <TouchableOpacity style={styles.manualEntryToggle} onPress={toggleManualEntry}>
-                            <Icon name={showManualEntry ? "chevron-up" : "chevron-down"} size={20} color="#FF7A00" />
-                            <Text style={styles.manualEntryToggleText}>
-                                {showManualEntry ? 'Hide' : 'Enter'} Coordinates Manually
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Manual Coordinate Entry */}
-                    {showManualEntry && (
-                        <View style={styles.manualEntryForm}>
-                            <View style={styles.coordinateRow}>
-                                <View style={styles.coordinateInputContainer}>
-                                    <Text style={styles.coordinateLabel}>Latitude</Text>
-                                    <TextInput
-                                        style={styles.coordinateInput}
-                                        placeholder="e.g., 19.0760"
-                                        value={manualLatitude}
-                                        onChangeText={setManualLatitude}
-                                        keyboardType="numeric"
-                                    />
-                                </View>
-                                <View style={styles.coordinateInputContainer}>
-                                    <Text style={styles.coordinateLabel}>Longitude</Text>
-                                    <TextInput
-                                        style={styles.coordinateInput}
-                                        placeholder="e.g., 72.8777"
-                                        value={manualLongitude}
-                                        onChangeText={setManualLongitude}
-                                        keyboardType="numeric"
-                                    />
-                                </View>
-                            </View>
-                            <TouchableOpacity style={styles.applyCoordinatesButton} onPress={handleManualCoordinateEntry}>
-                                <Icon name="checkmark-outline" size={20} color="#fff" />
-                                <Text style={styles.applyCoordinatesText}>Apply Coordinates</Text>
-                            </TouchableOpacity>
-                        </View>
-                    )}
-
-                    {/* Search Results */}
-                    {searchResults.length > 0 && (
-                        <View style={styles.searchResultsContainer}>
-                            <FlatList
-                                data={searchResults}
-                                keyExtractor={(item, index) => index.toString()}
-                                renderItem={({ item }) => (
-                                    <TouchableOpacity
-                                        style={styles.searchResultItem}
-                                        onPress={() => selectSearchResult(item)}
-                                    >
-                                        <Icon name="location-outline" size={16} color="#FF7A00" />
-                                        <View style={styles.searchResultText}>
-                                            <Text style={styles.searchResultTitle} numberOfLines={1}>
-                                                {item.display_name.split(',')[0]}
-                                            </Text>
-                                            <Text style={styles.searchResultSubtitle} numberOfLines={2}>
-                                                {item.display_name}
-                                            </Text>
-                                        </View>
-                                    </TouchableOpacity>
-                                )}
-                                style={styles.searchResultsList}
-                            />
-                        </View>
-                    )}
-
-                    {/* Map */}
-                    <View style={styles.mapContainer}>
-                        <MapView
-                            style={styles.map}
-                            region={mapRegion}
-                            onPress={onMapPress}
-                            showsUserLocation={true}
-                            showsMyLocationButton={false}
-                        >
-                            {selectedLocation && (
-                                <Marker
-                                    coordinate={selectedLocation}
-                                    title="Selected Location"
-                                    description="Tap to confirm this location"
-                                />
-                            )}
-                        </MapView>
-                    </View>
-
-                    {/* Instructions */}
-                    <View style={styles.instructionsContainer}>
-                        <Text style={styles.instructionsText}>
-                            📍 Search for an address, enter coordinates manually, or tap on the map to select a location
-                        </Text>
-                    </View>
-                </View>
-            </Modal>
         </View>
     );
 }
@@ -798,193 +457,5 @@ const styles = StyleSheet.create({
     prevButton: { padding: 14, borderRadius: 8, borderWidth: 1, borderColor: '#FF7A00', flex: 1, marginRight: 5 },
     nextButton: { backgroundColor: '#FF7A00', padding: 14, borderRadius: 8, flex: 1, marginLeft: 5 },
     buttonText: { fontWeight: 'bold', textAlign: 'center' },
-    
-    // Location Picker Modal Styles
-    modalContainer: {
-        flex: 1,
-        backgroundColor: '#fff',
-    },
-    modalHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-        backgroundColor: '#F8F9FA',
-    },
-    modalCloseButton: {
-        padding: 8,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#000',
-    },
-    modalConfirmButton: {
-        backgroundColor: '#FF7A00',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 6,
-    },
-    modalConfirmText: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 14,
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: '#F8F9FA',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-    },
-    searchInputContainer: {
-        flex: 1,
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 8,
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-        paddingHorizontal: 12,
-        marginRight: 8,
-    },
-    searchIcon: {
-        marginRight: 8,
-    },
-    searchInput: {
-        flex: 1,
-        paddingVertical: 10,
-        fontSize: 16,
-    },
-    currentLocationButton: {
-        backgroundColor: '#FF7A00',
-        padding: 12,
-        borderRadius: 8,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    searchResultsContainer: {
-        maxHeight: 200,
-        backgroundColor: '#fff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-    },
-    searchResultsList: {
-        flexGrow: 0,
-    },
-    searchResultItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#F0F0F0',
-    },
-    searchResultText: {
-        flex: 1,
-        marginLeft: 12,
-    },
-    searchResultTitle: {
-        fontSize: 16,
-        fontWeight: '500',
-        color: '#000',
-        marginBottom: 2,
-    },
-    searchResultSubtitle: {
-        fontSize: 14,
-        color: '#666',
-    },
-    mapContainer: {
-        flex: 1,
-        margin: 16,
-        borderRadius: 12,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    map: {
-        flex: 1,
-    },
-    instructionsContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: '#F8F9FA',
-        borderTopWidth: 1,
-        borderTopColor: '#E0E0E0',
-    },
-    instructionsText: {
-        fontSize: 14,
-        color: '#666',
-        textAlign: 'center',
-        lineHeight: 20,
-    },
-    
-    // Manual Entry Styles
-    manualEntryContainer: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: '#F8F9FA',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-    },
-    manualEntryToggle: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-    },
-    manualEntryToggleText: {
-        marginLeft: 8,
-        fontSize: 14,
-        color: '#FF7A00',
-        fontWeight: '500',
-    },
-    manualEntryForm: {
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-        backgroundColor: '#F8F9FA',
-        borderBottomWidth: 1,
-        borderBottomColor: '#E0E0E0',
-    },
-    coordinateRow: {
-        flexDirection: 'row',
-        marginBottom: 12,
-    },
-    coordinateInputContainer: {
-        flex: 1,
-        marginHorizontal: 4,
-    },
-    coordinateLabel: {
-        fontSize: 12,
-        fontWeight: '500',
-        color: '#666',
-        marginBottom: 4,
-    },
-    coordinateInput: {
-        backgroundColor: '#fff',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-        borderRadius: 6,
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        fontSize: 14,
-    },
-    applyCoordinatesButton: {
-        backgroundColor: '#FF7A00',
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 10,
-        borderRadius: 6,
-        gap: 6,
-    },
-    applyCoordinatesText: {
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: 14,
-    },
 });
 
