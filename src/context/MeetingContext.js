@@ -56,6 +56,7 @@ export const MeetingProvider = ({ children }) => {
       setPausedTotalMs(0);
       setPauseStartedAt(null);
     }
+
   }, []);
 
   const startMeeting = useCallback(async (lead, startTime) => {

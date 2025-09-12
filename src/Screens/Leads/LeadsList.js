@@ -19,6 +19,7 @@ import BASE_URL from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { set } from 'date-fns';
 import getLeadStatuses from '../../utils/getLeadStatuses';
+import { useAuth } from '../../context/AuthContext';
 
 // ---- helpers -------------------------------------------------------------
 const ymd = (d) => {
@@ -36,6 +37,8 @@ const formatDateForDisplay = (date) => {
   };
   return date.toLocaleDateString('en-US', options);
 };
+
+
 
 /** Map API lead to UI card shape (keeps your card render intact) */
 const mapLead = (l) => ({
@@ -116,6 +119,8 @@ export default function LeadsList(props) {
     fetchLeads(1);
     fetchLeadStatuses();
   }, []);
+
+  const { user } = useAuth();
 
   const buildQueryParams = useCallback((pageNum = 1) => {
     const params = new URLSearchParams();
@@ -280,7 +285,7 @@ export default function LeadsList(props) {
     // navigation.navigate('Meeting', { leadId: lead.id });
   };
 
-  const TABS = [{ key: 'all', label: 'All', count: 0 }, { key: 'today', label: 'Today', count: 0 }, ...leadStatuses.map(status => ({ key: status.id, label: status.name, count: 0 }))];
+  const TABS = [{ key: 'all', label: 'All', count: 0 }, { key: 'today', label: 'Todays Follow Up', count: 0 }, ...leadStatuses.map(status => ({ key: status.id, label: status.name, count: 0 }))];
 
   const renderTab = t => {
     const isActive = activeTab === t.key;
@@ -315,7 +320,12 @@ export default function LeadsList(props) {
     >
       <View style={styles.card}>
         <View style={styles.cardHeadRow}>
-          <Text style={styles.company}>{item.company}</Text>
+          <Text style={styles.company}>
+            {item.company} 
+          </Text>
+          <Text style={{ marginTop: 5, backgroundColor: item.originalData.created_by != user?.id ? '#dbeafe' : '', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 100, width: 80 }}>
+            {item.originalData.created_by != user?.id ? 'Assigned' : ''}
+          </Text>
 
           <View
             style={[
@@ -496,7 +506,7 @@ export default function LeadsList(props) {
         contentContainerStyle={{marginTop: 10, paddingHorizontal: 16, paddingBottom: 24, alignItems: 'stretch', flexGrow: 1, justifyContent: 'space-between' }}
         data={data}
         keyExtractor={item => item.id}
-        renderItem={renderItem}
+        renderItem={(item) => renderItem(item)}
         ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
         showsVerticalScrollIndicator={false}
         refreshControl={

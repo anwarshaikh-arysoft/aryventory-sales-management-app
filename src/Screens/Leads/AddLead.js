@@ -421,7 +421,7 @@ export default function AddLead({ navigation }) {
 const InputField = ({ icon, ...props }) => (
     <View style={styles.inputWrapper}>
         <Icon name={icon} size={20} color="#999" style={styles.inputIcon} />
-        <TextInput style={styles.input} {...props} />
+        <TextInput placeholderTextColor={'#ccc'} style={styles.input} {...props} />
     </View>
 );
 

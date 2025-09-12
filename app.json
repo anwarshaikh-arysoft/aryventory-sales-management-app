@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Arysoft Sales",
-    "slug": "snack-adf3a45a-30e3-44f0-acc5-9f65f9f82009",
+    "slug": "aryventory-sales-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -24,19 +24,24 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anwar.squarebiz.snackadf3a45a30e344f0acc59f65f9f82009"
+      "package": "com.anwar.squarebiz.snackadf3a45a30e344f0acc59f65f9f82009",
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "extra": {
       "eas": {
-        "projectId": "e0043c67-2f98-4b09-a30a-300b3ba0406c"
+        "projectId": "592768f6-0ec7-4be8-8d38-9af368999d0e"
       }
     },
     "plugins": [
       "expo-maps",
       "expo-audio"
-    ]
+    ],
+    "owner": "arysoft"
   }
 }

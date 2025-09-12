@@ -34,8 +34,6 @@ import ShiftHistoryScreen from '../ShiftHistoryScreen';
 import LeadsList from '../Screens/Leads/LeadsList';
 import MeetingTimerOverlay from '../components/MeetingTimerOverlay';
 
-
-
 const Stack = createNativeStackNavigator();
 
 export default function AppNavigator() {
@@ -112,7 +110,7 @@ export default function AppNavigator() {
             </>
           )}
         </Stack.Navigator>
-        <MeetingTimerOverlay />
+        {/* <MeetingTimerOverlay /> */}
         <Toast />
       </NavigationContainer>
     </MeetingProvider>

@@ -312,7 +312,7 @@ const DatePickerComponent = memo(({
   );
 });
 
-const MeetingTimerScreen = () => {
+const MeetingTimerScreen = ({ navigation }) => {
   // Meeting Context
   const { 
     meetingActive, 
@@ -464,13 +464,19 @@ const MeetingTimerScreen = () => {
 
     try {
       if (endpoint === '/meetings/start' || endpoint === '/meetings/end') {
-        selfieImage = await takeSelfie();
+
+        // selfieImage = await takeSelfie();
         locationCoords = await captureLocation();
 
-        if (!selfieImage || !locationCoords) {
-          Alert.alert("Error", "Please capture selfie and location");
+        if (!locationCoords) {
+          Alert.alert("Error", "Please capture location.");
           return;
         }
+
+        // if (!selfieImage) {
+        //   Alert.alert("Error", "Please capture selfie.");
+        //   return;
+        // }
 
         if (endpoint === '/meetings/start') {
           try {
@@ -485,8 +491,8 @@ const MeetingTimerScreen = () => {
         if (!token) return Alert.alert('Error', 'No token found');
 
         const formData = new FormData();
-        formData.append('lead_id', currentLead.id);
-        formData.append('selfie', { uri: selfieImage, type: 'image/jpeg', name: 'selfie.jpg' });
+        formData.append('lead_id', selectedLead.id);
+        // formData.append('selfie', { uri: selfieImage, type: 'image/jpeg', name: 'selfie.jpg' });
         formData.append('latitude', locationCoords.latitude);
         formData.append('longitude', locationCoords.longitude);
 
@@ -499,11 +505,20 @@ const MeetingTimerScreen = () => {
 
         if (endpoint === '/meetings/end') {
           const statusId = selectedStatus?.id;
+
           if (!statusId) {
             Alert.alert('Select Status', 'Please select a meeting outcome/status.');
             setLoadingAction(false);
+            fetchMeetingStatus();
             return;
           }
+
+          // if (!selectedPlan) {
+          //   Alert.alert('Select Plan', 'Please select a plan.');
+          //   setLoadingAction(false);
+          //   fetchMeetingStatus();
+          //   return;
+          // }
 
           formData.append('lead_status_id', String(statusId));
 
@@ -515,15 +530,16 @@ const MeetingTimerScreen = () => {
             formData.append('recording', audioPart);
           }
 
-          if (selectedPlan) formData.append('plan_interest', selectedPlan.name);
+          // if selectedPlan then add it to the form else add empty string
+          if (selectedPlan) formData.append('plan_interest', selectedPlan.name); else formData.append('plan_interest', '');
           if (recordingUri) formData.append('recording', { uri: recordingUri, type: 'audio/m4a', name: 'meeting.m4a' });
           if (notes) {formData.append('notes', notes)} else {formData.append('notes', '')}
 
           // Clear persisted draft on successful end
-          try { await AsyncStorage.removeItem(`meeting_draft_${currentLead.id}`); } catch {}
+          try { await AsyncStorage.removeItem(`meeting_draft_${selectedLead.id}`); } catch {}
           
-          // Update context state
-          updateMeetingState({
+          // Update context state          
+          updateMeetingState({            
             pausedTotalMs: 0,
             pauseStartedAt: null,
             isRecordingPaused: false,
@@ -538,21 +554,28 @@ const MeetingTimerScreen = () => {
         });
 
         Alert.alert('Success', res.data.message);
+        if (res.status === 200) {          
+          fetchMeetingStatus();
+        }
         
         // Update context based on action
         if (endpoint === '/meetings/start') {
-          startMeeting(currentLead, new Date().toISOString());
+          startMeeting(currentLead, new Date().toISOString());          
         } else if (endpoint === '/meetings/end') {
           endMeeting();
+          navigation.navigate('Home');
         }
       }
+
     } catch (err) {
       console.error(err);
       Alert.alert('Error', err.response?.data?.message || 'Something went wrong');
     } finally {
+      // Alert.alert('Success', 'Meeting action sent successfully');
+      // fetchMeetingStatus();
       setLoadingAction(null);
     }
-  }, [currentLead, nextFollowUpDate, selectedStatus, selectedPlan, recordingUri, notes, startMeeting, endMeeting, updateMeetingState]);
+  }, [selectedLead, nextFollowUpDate, selectedStatus, selectedPlan, recordingUri, notes, startMeeting, endMeeting, updateMeetingState]);
 
   // Fetch meeting status
   const fetchMeetingStatus = useCallback(async () => {
@@ -563,7 +586,7 @@ const MeetingTimerScreen = () => {
 
       const res = await axios.post(
         `${BASE_URL}/meetings/check/status`,
-        { lead_id },
+        { lead_id },        
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -618,7 +641,7 @@ const MeetingTimerScreen = () => {
         pauseStartedAt: Date.now(),
       });
       // persist draft state
-      if (currentLead?.id) {
+      if (selectedLead?.id) {
         const draft = {
           selectedStatus,
           selectedPlan,
@@ -628,10 +651,10 @@ const MeetingTimerScreen = () => {
           pausedTotalMs,
           pauseStartedAt: Date.now(),
         };
-        try { await AsyncStorage.setItem(`meeting_draft_${currentLead.id}`, JSON.stringify(draft)); } catch {}
+        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch {}
       }
     }
-  }, [currentLead?.id, selectedStatus, selectedPlan, notes, nextFollowUpDate, pausedTotalMs, updateMeetingState]);
+  }, [selectedLead?.id, selectedStatus, selectedPlan, notes, nextFollowUpDate, pausedTotalMs, updateMeetingState]);
 
   const onResumeRecording = useCallback(async () => {
     const res = await resumeMeetingRecording();
@@ -646,7 +669,7 @@ const MeetingTimerScreen = () => {
       });
       
       // persist draft state
-      if (currentLead?.id) {
+      if (selectedLead?.id) {
         const draft = {
           selectedStatus,
           selectedPlan,
@@ -656,10 +679,10 @@ const MeetingTimerScreen = () => {
           pausedTotalMs: newPausedTotalMs,
           pauseStartedAt: null,
         };
-        try { await AsyncStorage.setItem(`meeting_draft_${currentLead.id}`, JSON.stringify(draft)); } catch {}
+        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch {}
       }
     }
-  }, [currentLead?.id, selectedStatus, selectedPlan, notes, nextFollowUpDate, pausedTotalMs, pauseStartedAt, updateMeetingState]);
+  }, [selectedLead?.id, selectedStatus, selectedPlan, notes, nextFollowUpDate, pausedTotalMs, pauseStartedAt, updateMeetingState]);
 
   // Effects
   useEffect(() => {
@@ -670,10 +693,12 @@ const MeetingTimerScreen = () => {
   useEffect(() => {
     if (route.params && route.params.lead) {
       setSelectedLead(route.params.lead);
-      // Update context with the selected lead
-      updateMeetingState({ currentLead: route.params.lead });
+      // Only update context if this is a different lead
+      if (!currentLead || currentLead.id !== route.params.lead.id) {
+        updateMeetingState({ currentLead: route.params.lead });
+      }
     }
-  }, [route.params, updateMeetingState]);
+  }, [route.params]);
 
   useEffect(() => {
     fetchLeads();
@@ -681,6 +706,10 @@ const MeetingTimerScreen = () => {
 
   useEffect(() => {
     if (currentLead) {
+      // Only fetch meeting status if we don't already have meeting data
+      // if (!meetingActive) {
+      //   fetchMeetingStatus();
+      // }
       fetchMeetingStatus();
       // restore draft per lead
       const draftKey = `meeting_draft_${currentLead.id}`;
@@ -704,7 +733,7 @@ const MeetingTimerScreen = () => {
         } catch {}
       }).catch(() => {});
     }
-  }, [currentLead, fetchMeetingStatus, updateMeetingState]);
+  }, [currentLead?.id, fetchMeetingStatus, updateMeetingState, meetingActive]);
 
   // Also restore draft on screen focus (covers cases where component isn't unmounted)
   useFocusEffect(
@@ -735,17 +764,24 @@ const MeetingTimerScreen = () => {
     }, [currentLead?.id, updateMeetingState])
   );
 
+  // Sync selectedLead with currentLead when meeting is active
+  useEffect(() => {
+    if (meetingActive && currentLead && (!selectedLead || selectedLead.id !== currentLead.id)) {
+      setSelectedLead(currentLead);
+    }
+  }, [meetingActive, currentLead]);
+
   // Memoized components to prevent unnecessary renders
   const leadSelector = useMemo(() => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Select Meeting</Text>
       <TouchableOpacity style={styles.dropdown} onPress={() => setModalVisible(true)}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
-          {currentLead ? (
+          {selectedLead ? (
             <>
-              <Text style={styles.dropdownText}>{currentLead.contact_person} </Text>
+              <Text style={styles.dropdownText}>{selectedLead.contact_person} </Text>
               <ArrowRight size={18} />
-              <Text style={styles.dropdownText}> {currentLead.shop_name}</Text>
+              <Text style={styles.dropdownText}> {selectedLead.shop_name}</Text>
             </>
           ) : (
             <Text style={styles.dropdownText}>Choose from today's schedule</Text>
@@ -754,7 +790,7 @@ const MeetingTimerScreen = () => {
         <Ionicons name="chevron-down" size={20} color="#666" />
       </TouchableOpacity>
     </View>
-  ), [currentLead]);
+  ), [selectedLead]);
 
   const meetingInfo = useMemo(() => (
     <View style={styles.meetingInfo}>
@@ -795,10 +831,10 @@ const MeetingTimerScreen = () => {
             contentContainerStyle={{ paddingBottom: 80 }}
           >
             {/* Meeting Controls */}
-            {currentLead?.id ? (
+            {selectedLead?.id ? (
               <View style={styles.meetingControls}>
                 {loadingAction ? (
-                  <TouchableOpacity style={[styles.meetingControlButton, styles.loadingButton]}>
+                  <TouchableOpacity style={[styles.meetingControlButton, styles.loadingButton]}>                  
                     <Text style={styles.meetingControlButtonText}>Loading...</Text>
                     <MaterialIcons name="hourglass-empty" size={24} color="#fff" />
                   </TouchableOpacity>

@@ -26,8 +26,13 @@ import { getLeadsByFollowUpDate } from '../../utils/getLeadsByFollowUpDate';
 // Import BASE_URL from '../../config';
 import BASE_URL from '../../config';
 
+import MeetingTimerOverlay from '../../components/MeetingTimerOverlay';
+import { useMeeting } from '../../context/MeetingContext';
+
 export default function HomeScreen({ navigation }) {
 
+  // Meeting State
+  const { meetingActive } = useMeeting();
 
   // Screen Refresh state
   const [refreshing, setRefreshing] = useState(false);
@@ -89,19 +94,24 @@ export default function HomeScreen({ navigation }) {
 
     try {
       if (endpoint === '/shift/start' || endpoint === '/shift/end') {
-        selfieImage = await takeSelfie();
+        // selfieImage = await takeSelfie();
         locationCoords = await captureLocation();
 
-        if (!selfieImage || !locationCoords) {
-          Alert.alert("Error", "Please capture selfie and location");
+        if (!locationCoords) {
+          Alert.alert("Error", "Please capture location");
           return;
         }
+
+        // if (!selfieImage) {
+        //   Alert.alert("Error", "Please capture selfie");
+        //   return;
+        // }
 
         const token = await AsyncStorage.getItem('token');
         if (!token) return Alert.alert('Error', 'No token found');
 
         const formData = new FormData();
-        formData.append('selfie', { uri: selfieImage, type: 'image/jpeg', name: 'selfie.jpg' });
+        // formData.append('selfie', { uri: selfieImage, type: 'image/jpeg', name: 'selfie.jpg' });
         formData.append('latitude', locationCoords.latitude);
         formData.append('longitude', locationCoords.longitude);
 
@@ -172,11 +182,11 @@ export default function HomeScreen({ navigation }) {
         setShiftElapsed(0);
       }
 
-      if (data.break_started && !data.break_ended) {
-        setBreakElapsed(Math.floor(data.break_timer));
-      } else {
-        setBreakElapsed(0);
-      }
+      // if (data.break_started && !data.break_ended) {
+      //   setBreakElapsed(Math.floor(data.break_timer));
+      // } else {
+      //   setBreakElapsed(0);
+      // }
 
       if(data.total_break_time > 0){
         setBreakElapsed(Math.floor(data.total_break_time * 60));        
@@ -428,6 +438,9 @@ export default function HomeScreen({ navigation }) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.scheduleName}>{lead.contact_person}</Text>
                         <Text style={styles.scheduleLocation}>{lead.shop_name}</Text>
+                        <Text style={{marginTop: 5, backgroundColor: lead.created_by != user?.id ? '#dbeafe' : '#f9fafb', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 100, width: 80}}>
+                          {lead.created_by != user?.id ? 'Assigned' : ''}
+                        </Text>
                       </View>
                       <Text style={styles.scheduleTime}>
                         {lead.next_follow_up_date || 'No date'}
@@ -480,9 +493,19 @@ export default function HomeScreen({ navigation }) {
           </View>
 
         </View>
+        
       </ScrollView>
+      
+
       {/* Fixed Actions Bar */}
       <View style={[styles.fixedActionBar, styles.container]}>
+        {meetingActive && (
+          <View style={{ marginBottom: 16 }}>
+            {/* <MeetingTimerOverlay /> */}
+          </View>
+        )}
+        <View style={styles.fixedActionBarContent}>
+
         <TouchableOpacity style={styles.addLeadButton} onPress={() => navigation.navigate('addlead')}>
           <Ionicons name="add" size={20} color="#16a34a" />
           <Text style={styles.addLeadText}>Add Lead</Text>
@@ -491,8 +514,10 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity style={styles.startMeetingButton} onPress={() => navigation.navigate('Meeting')}>
           <Ionicons name="time" size={20} color="#2563eb" />
           <Text style={styles.startMeetingText}>Start Meeting</Text>
-        </TouchableOpacity>
+        </TouchableOpacity>        
+        </View>
       </View>
+
     </View>
   );
 }
@@ -750,13 +775,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    justifyContent: 'space-around',
+    flexDirection: 'column',
     paddingVertical: 10,
     paddingBottom: 20,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#ddd',
+  },
+  fixedActionBarContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
 
 });
