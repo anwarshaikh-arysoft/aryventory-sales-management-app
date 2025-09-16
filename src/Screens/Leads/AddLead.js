@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureLocation } from '../../utils/LocationCapture';
 import { colors } from '../../../theme/colors';
 import axios from 'axios';
+import { getAddressFromCoords } from '../../utils/getAddressFromCoords';
 
 export default function AddLead({ navigation }) {
     const steps = ['Shop Information', 'Location Details', 'Business Details'];
@@ -137,6 +138,10 @@ export default function AddLead({ navigation }) {
                 ...prev,
                 gps_location: locationString
             }));
+
+            const address = await getAddressFromCoords(locationString);
+            handleChange('address', address.address);
+            handleChange('pincode', address.postalCode);
         }
     };
 

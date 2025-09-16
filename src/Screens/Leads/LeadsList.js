@@ -26,6 +26,7 @@ const ymd = (d) => {
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
+
 const todayYMD = () => ymd(new Date());
 
 const formatDateForDisplay = (date) => {
@@ -65,10 +66,12 @@ const mapLead = (l) => ({
 // ---- component -----------------------------------------------------------
 export default function LeadsList(props) {
   const { navigation, route } = props;
+  const tab = route?.params?.tab || 'all';
 
   const [query, setQuery] = useState('');
-  const tab = route?.params?.tab || 'all';
+
   const [activeTab, setActiveTab] = useState(tab);
+
   const [items, setItems] = useState([]);            // mapped UI items
   const [pagination, setPagination] = useState({
     current_page: 1,
@@ -114,10 +117,12 @@ export default function LeadsList(props) {
     };
   }, [query, activeTab, startDate, endDate]);
 
+
+
   // Initial load
   useEffect(() => {
-    fetchLeads(1);
-    fetchLeadStatuses();
+      fetchLeads(1);
+      fetchLeadStatuses();      
   }, []);
 
   const { user } = useAuth();
@@ -174,13 +179,14 @@ export default function LeadsList(props) {
 
       controller = new AbortController();
       const qs = buildQueryParams(pageNum);
+      console.log('Query String:', qs);
       const res = await fetch(`${BASE_URL}/sales-executive/leads?${qs}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
         },
         signal: controller.signal,
-      });      
+      });
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -321,7 +327,7 @@ export default function LeadsList(props) {
       <View style={styles.card}>
         <View style={styles.cardHeadRow}>
           <Text style={styles.company}>
-            {item.company} 
+            {item.company}
           </Text>
           <Text style={{ marginTop: 5, backgroundColor: item.originalData.created_by != user?.id ? '#dbeafe' : '', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 100, width: 80 }}>
             {item.originalData.created_by != user?.id ? 'Assigned' : ''}
@@ -379,7 +385,7 @@ export default function LeadsList(props) {
         <Text style={[styles.mutedLabel, { marginTop: 8 }]}>Notes</Text>
         <Text style={styles.note}>{item.note}</Text>
 
-        <View style={[styles.actionsRow, { display: 'none'}]}>
+        <View style={[styles.actionsRow, { display: 'none' }]}>
           <ActionButton
             label="Call"
             icon="call-outline"
@@ -503,7 +509,7 @@ export default function LeadsList(props) {
 
       {/* List */}
       <FlatList
-        contentContainerStyle={{marginTop: 10, paddingHorizontal: 16, paddingBottom: 24, alignItems: 'stretch', flexGrow: 1, justifyContent: 'space-between' }}
+        contentContainerStyle={{ marginTop: 10, paddingHorizontal: 16, paddingBottom: 24, alignItems: 'stretch', flexGrow: 1, justifyContent: 'space-between' }}
         data={data}
         keyExtractor={item => item.id}
         renderItem={(item) => renderItem(item)}
@@ -680,8 +686,17 @@ const styles = StyleSheet.create({
   },
   cardHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   company: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  badge: { paddingHorizontal: 12, height: 30, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  badgeText: { fontSize: 12, fontWeight: '700' },
+  badge: {
+    paddingHorizontal: 12,
+    minHeight: 30,               // 👈 use minHeight instead of fixed height
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
+    flexShrink: 1,
+  },
+  badgeText: { fontSize: 12, fontWeight: '700', flexShrink: 1, flexWrap: 'wrap', textAlign: 'center', width: '100%' },
   separator: { height: 1, backgroundColor: '#F1F1F1', marginVertical: 12 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   name: { fontSize: 14, fontWeight: '600', color: '#111827' },

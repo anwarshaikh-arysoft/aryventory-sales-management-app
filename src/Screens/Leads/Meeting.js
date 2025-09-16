@@ -465,8 +465,22 @@ const MeetingTimerScreen = ({ navigation }) => {
     try {
       if (endpoint === '/meetings/start' || endpoint === '/meetings/end') {
 
+        // console.log('Sending selfie image...');
+        // const sendSelfieImageStartTime = Date.now();
         // selfieImage = await takeSelfie();
+        // // Track time taken to send selfie image
+        // const sendSelfieImageEndTime = Date.now();
+        // console.log('Time taken to send selfie image:', (sendSelfieImageEndTime - sendSelfieImageStartTime) / 1000, 'seconds');
+
+
+        // capture location
+        console.log('Capturing location...');
+        // Track time taken to capture location
+        const captureLocationStartTime = Date.now();
         locationCoords = await captureLocation();
+        // Track time taken to capture location
+        const captureLocationEndTime = Date.now();
+        console.log('Time taken to capture location:', (captureLocationEndTime - captureLocationStartTime) / 1000, 'seconds');
 
         if (!locationCoords) {
           Alert.alert("Error", "Please capture location.");
@@ -503,9 +517,12 @@ const MeetingTimerScreen = ({ navigation }) => {
           );
         }
 
+
+
         if (endpoint === '/meetings/end') {
           const statusId = selectedStatus?.id;
 
+          // Check if status is selected
           if (!statusId) {
             Alert.alert('Select Status', 'Please select a meeting outcome/status.');
             setLoadingAction(false);
@@ -513,18 +530,22 @@ const MeetingTimerScreen = ({ navigation }) => {
             return;
           }
 
-          // if (!selectedPlan) {
-          //   Alert.alert('Select Plan', 'Please select a plan.');
-          //   setLoadingAction(false);
-          //   fetchMeetingStatus();
-          //   return;
-          // }
+          // Check if status is Sold and plan is not selected
+          if (selectedStatus.name === 'Sold' && !selectedPlan) {
+            Alert.alert('Select Plan', 'Please select a plan.');
+            setLoadingAction(false);
+            fetchMeetingStatus();
+            return;
+          }
 
+          // Add status id to form data
           formData.append('lead_status_id', String(statusId));
 
+          // Stop recording
           const { uri } = await stopMeetingRecording();
           setRecordingUri(uri);
 
+          // Build audio part
           const audioPart = buildAudioFormPart(uri, 'meeting');
           if (audioPart) {
             formData.append('recording', audioPart);
@@ -532,7 +553,11 @@ const MeetingTimerScreen = ({ navigation }) => {
 
           // if selectedPlan then add it to the form else add empty string
           if (selectedPlan) formData.append('plan_interest', selectedPlan.name); else formData.append('plan_interest', '');
+          
+          // if recordingUri then add it to the form else add empty string
           if (recordingUri) formData.append('recording', { uri: recordingUri, type: 'audio/m4a', name: 'meeting.m4a' });
+          
+          // if notes then add it to the form else add empty string
           if (notes) {formData.append('notes', notes)} else {formData.append('notes', '')}
 
           // Clear persisted draft on successful end
@@ -544,7 +569,11 @@ const MeetingTimerScreen = ({ navigation }) => {
             pauseStartedAt: null,
             isRecordingPaused: false,
           });
+
         }
+
+        console.log('Sending meeting action...');
+        const sendMeetingActionStartTime = Date.now();
 
         const res = await axios.post(`${BASE_URL}${endpoint}`, formData, {
           headers: {
@@ -554,8 +583,11 @@ const MeetingTimerScreen = ({ navigation }) => {
         });
 
         Alert.alert('Success', res.data.message);
+        const sendMeetingActionEndTime = Date.now();
+        console.log('Time taken to send meeting action:', (sendMeetingActionEndTime - sendMeetingActionStartTime) / 1000, 'seconds');
+
         if (res.status === 200) {          
-          fetchMeetingStatus();
+          fetchMeetingStatus();                  
         }
         
         // Update context based on action
@@ -571,17 +603,20 @@ const MeetingTimerScreen = ({ navigation }) => {
       console.error(err);
       Alert.alert('Error', err.response?.data?.message || 'Something went wrong');
     } finally {
-      // Alert.alert('Success', 'Meeting action sent successfully');
-      // fetchMeetingStatus();
       setLoadingAction(null);
     }
   }, [selectedLead, nextFollowUpDate, selectedStatus, selectedPlan, recordingUri, notes, startMeeting, endMeeting, updateMeetingState]);
 
   // Fetch meeting status
   const fetchMeetingStatus = useCallback(async () => {
+    console.log('Fetching meeting status...');
+    // Track time taken to fetch meeting status
+    const startTime = Date.now();
+
     setLoadingAction(true);
     try {
       const lead_id = currentLead?.id;
+      console.log('Lead ID:', lead_id);
       const token = await AsyncStorage.getItem('token');
 
       const res = await axios.post(
@@ -630,6 +665,10 @@ const MeetingTimerScreen = ({ navigation }) => {
     } finally {
       setLoadingAction(false);
     }
+
+    // Track time taken to fetch meeting status in seconds 
+    const endTime = Date.now();
+    console.log('Time taken to fetch meeting status:', (endTime - startTime) / 1000, 'seconds');
   }, [currentLead?.id, updateMeetingState]);
 
   const onPauseRecording = useCallback(async () => {
@@ -775,7 +814,7 @@ const MeetingTimerScreen = ({ navigation }) => {
   const leadSelector = useMemo(() => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Select Meeting</Text>
-      <TouchableOpacity style={styles.dropdown} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={styles.dropdown} onPress={() => setModalVisible(true)}>        
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           {selectedLead ? (
             <>
@@ -788,7 +827,7 @@ const MeetingTimerScreen = ({ navigation }) => {
           )}
         </View>
         <Ionicons name="chevron-down" size={20} color="#666" />
-      </TouchableOpacity>
+      </TouchableOpacity>      
     </View>
   ), [selectedLead]);
 
@@ -808,7 +847,7 @@ const MeetingTimerScreen = ({ navigation }) => {
           ) : (
             <TouchableOpacity style={styles.recordButton} onPress={onPauseRecording}>
               <MaterialIcons name="pause" size={16} color="#ff9500" />
-              <Text style={styles.recordText}>Pause</Text>
+              <Text style={styles.recordText}>Pause</Text>        
             </TouchableOpacity>
           )}
         </View>

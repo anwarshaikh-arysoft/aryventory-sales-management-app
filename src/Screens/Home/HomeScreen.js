@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
+  AppState,
 } from 'react-native';
 import { Ionicons, MaterialIcons, Feather } from '@expo/vector-icons'; // or from 'react-native-vector-icons'
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -171,36 +172,52 @@ export default function HomeScreen({ navigation }) {
       });
       const data = res.data;
 
+      console.log('data', data);
+
       setShiftActive(data.shift_started && !data.shift_ended);
       setBreakActive(data.break_started && !data.break_ended);
       if (data.shift_started) setShiftStartTime(new Date(data.shiftStart).getTime());
       if (data.break_started) setBreakStartTime(new Date(data.breakStart).getTime());
 
+      console.log('breakActive', breakActive);
+      console.log('breakElapsed', breakElapsed);
+      console.log('data.break_timer', data.break_timer);
+      console.log('data.total_break_time', data.total_break_time);
+
       if (data.shift_started && !data.shift_ended) {
         setShiftElapsed(Math.floor(data.shift_timer));
+        
+        if (breakActive) {
+          setBreakElapsed(Math.floor(data.break_timer + data.total_break_time));
+        } else {
+          setBreakElapsed(Math.floor(data.total_break_time));
+        }
+        
       } else {
         setShiftElapsed(0);
-      }
-
-      // if (data.break_started && !data.break_ended) {
-      //   setBreakElapsed(Math.floor(data.break_timer));
-      // } else {
-      //   setBreakElapsed(0);
-      // }
-
-      if(data.total_break_time > 0){
-        setBreakElapsed(Math.floor(data.total_break_time * 60));        
-      } else {
         setBreakElapsed(0);
-      }
+      }      
 
     } catch (err) {
       console.error('Error fetching shift status:', err);
     }
   };
 
+  // Fetch shift status on app foreground
   useEffect(() => {
     fetchShiftStatus();
+
+    // Run on app foreground
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      if (nextAppState === 'active') {
+        fetchShiftStatus();
+      }
+    });
+
+    return () => {
+      subscription.remove(); // cleanup
+    };
+
   }, [shiftActive, breakActive, shiftStartTime, breakStartTime]);
 
   // Fetch user stats
@@ -237,7 +254,7 @@ export default function HomeScreen({ navigation }) {
       setLeads(data.data); // `data` is the Laravel paginated object
       setPagination({
         current_page: data.current_page,
-        last_page: data.last_page,        
+        last_page: data.last_page,
       });
     } finally {
       setLoading(false);
@@ -249,19 +266,19 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
 
-  function handleNavigation(title){
-  let tab;
-  if(title == 'total leads'){
-   tab = 'all'
-  }
-  else  if (title == 'sold'){
-    tab = 'sold'
-  }
-  else{
-    tab = 'today'
-  }
-   if(title == 'target') navigation.navigate('Reports')
-    else navigation.navigate('leadlist', {tab : tab})
+  function handleNavigation(title) {
+    let tab;
+    if (title == 'total leads') {
+      tab = 'all'
+    }
+    else if (title == 'sold') {
+      tab = 'Sold'
+    }
+    else {
+      tab = 'today'
+    }
+    if (title == 'target') navigation.navigate('Reports')
+    else navigation.navigate('leadlist', { tab: tab })
   }
 
   return (
@@ -396,7 +413,7 @@ export default function HomeScreen({ navigation }) {
           {/* Stats */}
           <View style={styles.statsGrid}>
             {stats && Object.entries(stats).map(([title, stat], index) => (
-              <TouchableOpacity onPress={()=>handleNavigation(title)} key={index} style={styles.statCard}>
+              <TouchableOpacity onPress={() => handleNavigation(title)} key={index} style={styles.statCard}>
                 <View style={styles.statValueContainer}>
                   <Text style={styles.statLabel}>{title}</Text>
                   <MaterialIcons name="calendar-today" size={18} color="#f97316" />
@@ -413,7 +430,7 @@ export default function HomeScreen({ navigation }) {
             <View style={[styles.recentActivityHeader]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, }}>
                 <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
-                <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{ leads.filter((lead) => lead.lead_status_data?.name != 'Sold' && lead.lead_status_data?.name != 'Not Interested').length}</Text>
+                <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{leads.filter((lead) => lead.lead_status_data?.name != 'Sold' && lead.lead_status_data?.name != 'Not Interested').length}</Text>
               </View>
               <TouchableOpacity style={{ backgroundColor: '#dbeafe', padding: 8, borderRadius: 12, }} onPress={() => navigation.navigate('leadlist')}>
                 <Text style={{ color: '#2563eb', fontWeight: 'bold' }}>View All</Text>
@@ -424,7 +441,7 @@ export default function HomeScreen({ navigation }) {
               <ActivityIndicator size="large" color="#000" />
             ) : (
               <>
-                {/* Remove leads which are sold and not interested */}                              
+                {/* Remove leads which are sold and not interested */}
                 {leads.filter((lead) => lead.lead_status_data?.name != 'Sold' && lead.lead_status_data?.name != 'Not Interested').map((lead, index) => (
                   <TouchableOpacity
                     key={index}
@@ -438,7 +455,7 @@ export default function HomeScreen({ navigation }) {
                       <View style={{ flex: 1 }}>
                         <Text style={styles.scheduleName}>{lead.contact_person}</Text>
                         <Text style={styles.scheduleLocation}>{lead.shop_name}</Text>
-                        <Text style={{marginTop: 5, backgroundColor: lead.created_by != user?.id ? '#dbeafe' : '#f9fafb', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 100, width: 80}}>
+                        <Text style={{ marginTop: 5, backgroundColor: lead.created_by != user?.id ? '#dbeafe' : '#f9fafb', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 100, width: 80 }}>
                           {lead.created_by != user?.id ? 'Assigned' : ''}
                         </Text>
                       </View>
@@ -481,8 +498,8 @@ export default function HomeScreen({ navigation }) {
                   <TouchableOpacity
                     onPress={() => fetchLeads(pagination.current_page + 1)}
                     disabled={pagination.current_page >= pagination.last_page}
-                    style={[styles.paginationButton,                      
-                      { opacity: pagination.current_page >= pagination.last_page ? 0.5 : 1 }
+                    style={[styles.paginationButton,
+                    { opacity: pagination.current_page >= pagination.last_page ? 0.5 : 1 }
                     ]}
                   >
                     <Text style={styles.paginationButtonText}>Next</Text>
@@ -493,9 +510,9 @@ export default function HomeScreen({ navigation }) {
           </View>
 
         </View>
-        
+
       </ScrollView>
-      
+
 
       {/* Fixed Actions Bar */}
       <View style={[styles.fixedActionBar, styles.container]}>
@@ -506,15 +523,15 @@ export default function HomeScreen({ navigation }) {
         )}
         <View style={styles.fixedActionBarContent}>
 
-        <TouchableOpacity style={styles.addLeadButton} onPress={() => navigation.navigate('addlead')}>
-          <Ionicons name="add" size={20} color="#16a34a" />
-          <Text style={styles.addLeadText}>Add Lead</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.addLeadButton} onPress={() => navigation.navigate('addlead')}>
+            <Ionicons name="add" size={20} color="#16a34a" />
+            <Text style={styles.addLeadText}>Add Lead</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.startMeetingButton} onPress={() => navigation.navigate('Meeting')}>
-          <Ionicons name="time" size={20} color="#2563eb" />
-          <Text style={styles.startMeetingText}>Start Meeting</Text>
-        </TouchableOpacity>        
+          <TouchableOpacity style={styles.startMeetingButton} onPress={() => navigation.navigate('Meeting')}>
+            <Ionicons name="time" size={20} color="#2563eb" />
+            <Text style={styles.startMeetingText}>Start Meeting</Text>
+          </TouchableOpacity>
         </View>
       </View>
 

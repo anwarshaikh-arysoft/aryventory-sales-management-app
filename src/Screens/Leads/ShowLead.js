@@ -319,7 +319,12 @@ export default function ShowLead() {
     return (
         <View style={{ flex: 1 }}>
             <ScrollView contentContainerStyle={styles.container}>
-            <View style={styles.card}>
+            <View style={styles.card}>  
+                {/* Assigned by */}
+                <View style={styles.assignedBy}>
+                    <Text style={styles.assignedByText}>Assigned by: {leadDetails.created_by_user?.name}</Text>
+                </View>
+
                 {/* Title and status */}
                 <View style={styles.header}>
                     <Text style={styles.shopName}>{lead.shop_name}</Text>
@@ -645,5 +650,12 @@ const styles = StyleSheet.create({
         color: 'white',
         fontSize: 14,
         fontWeight: '500',
+    },
+    assignedBy: {
+        marginBottom: 12,
+    },
+    assignedByText: {
+        fontSize: 14,
+        color: '#4B5563',
     },
 });

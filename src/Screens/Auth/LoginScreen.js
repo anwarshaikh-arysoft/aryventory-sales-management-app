@@ -39,8 +39,8 @@ export default function LoginScreen({ navigation }) {
     const result = await login(email, password);
     setLoading(false);
 
-    if (result.success) {
-      navigation.replace('Home'); // ✅ Go to Home if success
+    if (result.success) {      
+      // navigation.replace('Home'); // ✅ Go to Home if success
     } else {
       setErrorMsg(result.error || 'Login failed');
     }
