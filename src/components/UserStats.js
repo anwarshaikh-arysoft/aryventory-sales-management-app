@@ -9,7 +9,7 @@ import BASE_URL from '../config';
 import { useNavigation } from '@react-navigation/native';
 
 
-export default function UserStats() {
+export default function UserStats({ bgColor }) {
 
     // Auth Context
     const { user, logout } = useAuth();
@@ -51,12 +51,13 @@ export default function UserStats() {
             tab = 'all'
         }
         else if (title == 'sold') {
-            tab = 'sold'
+            tab = 5
         }
-        else {
+        else if (title == 'today') {
             tab = 'today'
         }
-        if (title == 'target') navigation.navigate('Reports')
+        if (title == 'target' || title == 'revenue target') { navigation.navigate('Reports') }
+        else if (title == 'follow up target') { navigation.navigate('Reports') }
         else navigation.navigate('leadlist', { tab: tab })
     }
 
@@ -64,20 +65,66 @@ export default function UserStats() {
     return (
         <>
             {/* My Stats Section */}
-            <Text style={styles.sectionTitle}>Monthly Stats</Text>
 
-            {/* Stats */}
-            <View style={styles.statsGrid}>
-                {stats && Object.entries(stats).map(([title, stat], index) => (
-                    <TouchableOpacity onPress={() => handleNavigation(title)} key={index} style={styles.statCard}>
-                        <View style={styles.statValueContainer}>
-                            <Text style={styles.statLabel}>{title}</Text>
-                            <MaterialIcons name="calendar-today" size={18} color="#f97316" />
-                        </View>
-                        <Text style={styles.statValue}>{title == 'target' ? stats['sold'] + ' /' : ''} {stat}</Text>
-                    </TouchableOpacity>
-                ))}
-            </View>
+            {stats && (
+                <View style={{ marginTop: 20 }}>
+                    <Text style={styles.sectionTitle}>Monthly Stats</Text>
+                    <View style={styles.statsGrid}>
+                        <TouchableOpacity onPress={() => navigation.navigate('leadlist', { tab: 'all' })} style={[styles.statCard, { backgroundColor: bgColor }]}>
+                            <View style={styles.statValueContainer}>
+                                <Text style={styles.statLabel}>Total Leads</Text>
+                                <MaterialIcons name="calendar-today" size={18} color="#f97316" />
+                            </View>
+                            <Text style={styles.statValue}>{stats['total leads']}</Text>
+                            <Text style={styles.statLabel}>/ {stats['total leads']}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => navigation.navigate('leadlist', { tab: 5 })} style={[styles.statCard, { backgroundColor: bgColor }]}>
+                            <View style={styles.statValueContainer}>
+                                <Text style={styles.statLabel}>Sold</Text>
+                                <MaterialIcons name="calendar-today" size={18} color="#f97316" />
+                            </View>
+                            <Text style={styles.statValue}>{stats['sold']}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => navigation.navigate('leadlist', { tab: 'today' })} style={[styles.statCard, { backgroundColor: bgColor }]}>
+                            <View style={styles.statValueContainer}>
+                                <Text style={styles.statLabel}>Today's Follow Up</Text>
+                                <MaterialIcons name="calendar-today" size={18} color="#f97316" />
+                            </View>
+                            <Text style={styles.statValue}>{stats['follow ups']}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => navigation.navigate('Reports')} style={[styles.statCard, { backgroundColor: bgColor }]}>
+                            <View style={styles.statValueContainer}>
+                                <Text style={styles.statLabel}>Target</Text>
+                                <MaterialIcons name="calendar-today" size={18} color="#f97316" />
+                            </View>
+                            <Text style={styles.statValue}>{stats['sold']}</Text>
+                            <Text style={styles.statLabel}>/ {stats['target']}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => navigation.navigate('Reports')} style={[styles.statCard, { backgroundColor: bgColor }]}>
+                            <View style={styles.statValueContainer}>
+                                <Text style={styles.statLabel}>Revenue Target</Text>
+                                <MaterialIcons name="calendar-today" size={18} color="#f97316" />
+                            </View>
+                            <Text style={styles.statValue}>{stats['revenue']}</Text>
+                            <Text style={styles.statLabel}>/ {stats['revenue target']}</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity onPress={() => navigation.navigate('MeetingHistory')} style={[styles.statCard, { backgroundColor: bgColor }]}>
+                            <View style={styles.statValueContainer}>
+                                <Text style={styles.statLabel}>Meetings Target</Text>
+                                <MaterialIcons name="calendar-today" size={18} color="#f97316" />
+                            </View>
+                            <Text style={styles.statValue}>{stats['meeting']}</Text>
+                            <Text style={styles.statLabel}>/ {stats['meeting target']}</Text>
+                        </TouchableOpacity>
+
+                    </View>
+                </View>
+            )}
         </>
     );
 }

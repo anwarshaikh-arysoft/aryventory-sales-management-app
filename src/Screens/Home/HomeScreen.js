@@ -18,6 +18,8 @@ import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 import { useEffect, useState, useCallback } from 'react';
 
+import UserStats from '../../components/UserStats';
+
 // Media and location capturing components
 import { takeSelfie } from '../../utils/TakeSelfie';
 import { captureLocation } from '../../utils/LocationCapture';
@@ -186,17 +188,17 @@ export default function HomeScreen({ navigation }) {
 
       if (data.shift_started && !data.shift_ended) {
         setShiftElapsed(Math.floor(data.shift_timer));
-        
+
         if (breakActive) {
           setBreakElapsed(Math.floor(data.break_timer + data.total_break_time));
         } else {
           setBreakElapsed(Math.floor(data.total_break_time));
         }
-        
+
       } else {
         setShiftElapsed(0);
         setBreakElapsed(0);
-      }      
+      }
 
     } catch (err) {
       console.error('Error fetching shift status:', err);
@@ -272,12 +274,13 @@ export default function HomeScreen({ navigation }) {
       tab = 'all'
     }
     else if (title == 'sold') {
-      tab = 'Sold'
+      tab = 5
     }
-    else {
+    else if (title == 'today') {
       tab = 'today'
     }
-    if (title == 'target') navigation.navigate('Reports')
+    if (title == 'target' || title == 'revenue target') { navigation.navigate('Reports') }
+    else if (title == 'follow up target') { navigation.navigate('Reports') }
     else navigation.navigate('leadlist', { tab: tab })
   }
 
@@ -316,12 +319,21 @@ export default function HomeScreen({ navigation }) {
               </TouchableOpacity> */}
 
               {/* Add Shift History Button */}
+
               <TouchableOpacity
                 style={styles.historyButton}
                 onPress={() => navigation.navigate('ShiftHistory')}
               >
                 <Ionicons name="time" size={22} color="#fff" />
+              </TouchableOpacity>
 
+
+              {/* Add Daily Shifts Button */}
+              <TouchableOpacity
+                style={styles.historyButton}
+                onPress={() => navigation.navigate('MeetingHistory')}
+              >
+                <Ionicons name="calendar-outline" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
           </View>
@@ -410,8 +422,11 @@ export default function HomeScreen({ navigation }) {
             </Text>
           )}
 
+
           {/* Stats */}
-          <View style={styles.statsGrid}>
+          <UserStats bgColor='#f9fafb' />
+          
+          {/* <View style={styles.statsGrid}>
             {stats && Object.entries(stats).map(([title, stat], index) => (
               <TouchableOpacity onPress={() => handleNavigation(title)} key={index} style={styles.statCard}>
                 <View style={styles.statValueContainer}>
@@ -421,7 +436,7 @@ export default function HomeScreen({ navigation }) {
                 <Text style={styles.statValue}>{title == 'target' ? stats['sold'] + ' /' : ''} {stat}</Text>
               </TouchableOpacity>
             ))}
-          </View>
+          </View> */}
 
           {/* Schedule */}
 

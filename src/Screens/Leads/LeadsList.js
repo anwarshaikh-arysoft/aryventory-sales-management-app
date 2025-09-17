@@ -167,6 +167,8 @@ export default function LeadsList(props) {
   const fetchLeadStatuses = useCallback(async () => {
     const leadStatuses = await getLeadStatuses();
     setLeadStatuses(leadStatuses);
+
+
   }, []);
 
   const fetchLeads = useCallback(async (pageNum = 1) => {
@@ -293,6 +295,8 @@ export default function LeadsList(props) {
 
   const TABS = [{ key: 'all', label: 'All', count: 0 }, { key: 'today', label: 'Todays Follow Up', count: 0 }, ...leadStatuses.map(status => ({ key: status.id, label: status.name, count: 0 }))];
 
+
+  console.log('TABS', TABS);
   const renderTab = t => {
     const isActive = activeTab === t.key;
     return (

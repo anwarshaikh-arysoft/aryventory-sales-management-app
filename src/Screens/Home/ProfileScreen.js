@@ -240,13 +240,23 @@ const ProfileScreen = ({ navigation }) => {
             </TouchableOpacity> */}
 
             {/* Add Shift History Button */}
+            
             <TouchableOpacity
               style={styles.historyButton}
               onPress={() => navigation.navigate('ShiftHistory')}
             >
               <Ionicons name="time" size={22} color="#fff" />
 
-            </TouchableOpacity>
+            </TouchableOpacity> 
+           
+
+            {/* Add Daily Shifts Button */}
+            <TouchableOpacity
+                style={styles.historyButton}
+                onPress={() => navigation.navigate('MeetingHistory')}
+              >
+                <Ionicons name="calendar-outline" size={22} color="#fff" />
+              </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -254,7 +264,7 @@ const ProfileScreen = ({ navigation }) => {
       <ScrollView style={styles.contentSection} showsVerticalScrollIndicator={false}>
 
         {/* My Stats Section */}
-        <UserStats />
+        <UserStats bgColor='#fff' />
 
         {/* Settings Section */}
 

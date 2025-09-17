@@ -52,7 +52,7 @@ const CircularProgress = ({ percentage, color, size = 60, strokeWidth = 6, child
   );
 };
 
-const ReportsDashboard = () => {
+const ReportsDashboard = ({ bgColor }) => {
 
   // Auth Context
   const { user, logout } = useAuth();
@@ -92,6 +92,7 @@ const ReportsDashboard = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
 
         {/* Time Filter Tabs */}
+        {/* 
         <View style={styles.tabContainer}>
           <TouchableOpacity style={[styles.tab, styles.activeTab]}>
             <Text style={[styles.tabText, styles.activeTabText]}>Today</Text>
@@ -102,39 +103,40 @@ const ReportsDashboard = () => {
           <TouchableOpacity style={styles.tab}>
             <Text style={styles.tabText}>This Month</Text>
           </TouchableOpacity>
-        </View>
+        </View> 
+        */}
 
         {/* My Stats Section */}
-        <UserStats />
+        {/* <UserStats /> */}
 
         {/* Daily Activity Section */}
 
-        <View style={styles.activityContainer}>
-          <Text style={styles.sectionTitle}>Daily Activity</Text>
-          <View style={styles.activityItemContainer}>
-            <View style={styles.activityItem}>
-              <CircularProgress percentage={80} color="#34C759" size={80}>
-                <Text style={styles.progressText}>8/10</Text>
-              </CircularProgress>
-              <Text style={styles.activityLabel}>Visit Completed</Text>
-            </View>
+        {
+          stats && (
+            <>
+              <View style={[styles.activityContainer, { marginTop: 20 }]}>
+                <Text style={styles.sectionTitle}>Daily Activity</Text>
+                <View style={styles.activityItemContainer}>
+                  <View style={styles.activityItem}>
+                    <CircularProgress percentage={40} color="#34C759" size={80}>
+                      <Text style={styles.progressText}>{stats['meeting']} / {stats['meeting target']}</Text>
+                    </CircularProgress>
+                    <Text style={styles.activityLabel}>Visit Completed</Text>
+                  </View>
 
-
-            <View style={styles.activityItem}>
-              <CircularProgress percentage={60} color="#007AFF" size={80}>
-                <Text style={styles.progressText}>12/20</Text>
-              </CircularProgress>
-              <Text style={styles.activityLabel}>Calls Made</Text>
-            </View>
-
-            <View style={styles.activityItem}>
-              <CircularProgress percentage={42} color="#FF6B35" size={80}>
-                <Text style={styles.progressText}>5/12</Text>
-              </CircularProgress>
-              <Text style={styles.activityLabel}>Follow-ups Due</Text>
-            </View>
-          </View>
-        </View>
+                  {/* 
+                    <View style={styles.activityItem}>
+                    <CircularProgress percentage={42} color="#FF6B35" size={80}>
+                      <Text style={styles.progressText}>5/12</Text>
+                    </CircularProgress>
+                    <Text style={styles.activityLabel}>Follow-ups Due</Text>
+                  </View> 
+                  */}
+                </View>
+              </View>
+            </>
+          )
+        }
 
         {/* Lead Status Breakdown */}
 
@@ -142,33 +144,21 @@ const ReportsDashboard = () => {
 
         {/* Revenue by Plan */}
         <View style={styles.revenueContainer}>
-          <Text style={styles.sectionTitle}>Revenue by Plan</Text>
+          <Text style={styles.sectionTitle}>Monthly Revenue by Plan</Text>
+          {
+            stats && stats['revenueByPlan'].map((item, index) => (
+              <View style={styles.revenueItem} key={index}>
+                <View>
+                  <Text style={styles.planName}>{item['plan_interest']}</Text>
+                  <Text style={styles.planDetails}>{item['leads_count']} Sales</Text>
+                </View>
+                <Text style={[styles.revenueAmount, { color: '#34C759' }]}>₹{item['revenue']}</Text>
+              </View>
+            ))
+          }
 
-          <View style={styles.revenueItem}>
-            <View>
-              <Text style={styles.planName}>Premium Plan</Text>
-              <Text style={styles.planDetails}>5 Sales</Text>
-            </View>
-            <Text style={[styles.revenueAmount, { color: '#34C759' }]}>₹24,000</Text>
-          </View>
-
-          <View style={styles.revenueItem}>
-            <View>
-              <Text style={styles.planName}>Standard Plan</Text>
-              <Text style={styles.planDetails}>6 Sales</Text>
-            </View>
-            <Text style={[styles.revenueAmount, { color: '#34C759' }]}>₹18,000</Text>
-          </View>
-
-          <View style={styles.revenueItem}>
-            <View>
-              <Text style={styles.planName}>Free Plan</Text>
-              <Text style={styles.planDetails}>1 Upgrade</Text>
-            </View>
-            <Text style={[styles.revenueAmount, { color: '#34C759' }]}>₹6,000</Text>
-          </View>
         </View>
-        
+
       </ScrollView>
     </SafeAreaView>
   );

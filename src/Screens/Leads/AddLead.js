@@ -140,6 +140,7 @@ export default function AddLead({ navigation }) {
             }));
 
             const address = await getAddressFromCoords(locationString);
+            console.log('address', address);
             handleChange('address', address.address);
             handleChange('pincode', address.postalCode);
         }

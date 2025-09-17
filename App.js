@@ -51,7 +51,7 @@ export default function App() {
     <SafeAreaProvider>
       <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
         <>
-          <StatusBar translucent={false} backgroundColor="#F6F6F6" barStyle="dark-content" />
+          {/* <StatusBar translucent={false} backgroundColor="#F6F6F6" barStyle="dark-content" /> */}
           <PaperProvider
             theme={{
               ...theme,

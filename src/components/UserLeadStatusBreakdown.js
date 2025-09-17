@@ -59,7 +59,7 @@ export default function UserLeadStatusBreakdown() {
         <>
             {/* Stats */}
             <View style={styles.statusContainer}>
-                <Text style={styles.sectionTitle}>Lead Status Breakdown</Text>
+                <Text style={styles.sectionTitle}>Monthly Lead Status Breakdown</Text>
 
                 {!stats || stats.length === 0 ? (
                     <Text style={{ textAlign: 'center', color: '#666' }}>No lead data available.</Text>
