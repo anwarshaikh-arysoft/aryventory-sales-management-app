@@ -121,8 +121,8 @@ export default function LeadsList(props) {
 
   // Initial load
   useEffect(() => {
-      fetchLeads(1);
-      fetchLeadStatuses();      
+    fetchLeads(1);
+    fetchLeadStatuses();
   }, []);
 
   const { user } = useAuth();
@@ -143,14 +143,15 @@ export default function LeadsList(props) {
       params.set('follow_up_start_date', ymd(startDate));
     } else if (endDate) {
       params.set('follow_up_end_date', ymd(endDate));
-    } else {
-      // tab-specific filters (only applied when no custom date range is set)
-      if (activeTab === 'today') {
-        const t = todayYMD();
-        params.set('follow_up_start_date', t);
-        params.set('follow_up_end_date', t);
-      }
     }
+    // else {
+    //   // tab-specific filters (only applied when no custom date range is set)
+    //   if (activeTab === 'today') {
+    //     const t = todayYMD();
+    //     params.set('follow_up_start_date', t);
+    //     params.set('follow_up_end_date', t);
+    //   }
+    // }
 
     if (activeTab !== 'all') {
       params.set('lead_status', activeTab);
@@ -333,9 +334,6 @@ export default function LeadsList(props) {
           <Text style={styles.company}>
             {item.company}
           </Text>
-          <Text style={{ marginTop: 5, backgroundColor: item.originalData.created_by != user?.id ? '#dbeafe' : '', paddingHorizontal: 5, paddingVertical: 2, borderRadius: 100, width: 80 }}>
-            {item.originalData.created_by != user?.id ? 'Assigned' : ''}
-          </Text>
 
           <View
             style={[
@@ -364,6 +362,12 @@ export default function LeadsList(props) {
               {item.status}
             </Text>
           </View>
+        </View>
+
+        <View style={{ alignItems: 'flex-start' }}>
+          <Text style={[{fontWeight: '600', fontSize: 12, marginTop: 5, backgroundColor: item.originalData.created_by != user?.id ? '#dbeafe' : '', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 100 }]}>
+            {item.originalData.created_by != user?.id ? 'Assigned' : ''}
+          </Text>
         </View>
 
         <View style={styles.separator} />
@@ -689,7 +693,7 @@ const styles = StyleSheet.create({
     borderColor: '#EFEFEF',
   },
   cardHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  company: { fontSize: 16, fontWeight: '700', color: '#111827' },
+  company: { width: '50%', fontSize: 16, fontWeight: '700', color: '#111827' },
   badge: {
     paddingHorizontal: 12,
     minHeight: 30,               // 👈 use minHeight instead of fixed height
@@ -698,13 +702,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: '#EFEFEF',
-    flexShrink: 1,
+    width: '50%',
   },
   badgeText: { fontSize: 12, fontWeight: '700', flexShrink: 1, flexWrap: 'wrap', textAlign: 'center', width: '100%' },
   separator: { height: 1, backgroundColor: '#F1F1F1', marginVertical: 12 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  name: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  phone: { fontSize: 13, fontWeight: '600', color: '#111827' },
+  name: { fontSize: 14, fontWeight: '600', color: '#111827', },
+  phone: { fontSize: 13, fontWeight: '600', color: '#111827', },
   mutedLabel: { marginTop: 6, fontSize: 12, color: '#6B7280' },
   datetime: { marginTop: 6, fontSize: 12, color: '#6B7280' },
   address: { marginTop: 2, fontSize: 13, color: '#111827', lineHeight: 18 },

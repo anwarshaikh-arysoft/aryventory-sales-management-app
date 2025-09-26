@@ -442,17 +442,20 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: 'bold',
         color: '#1F2937',
+        flexShrink: 1,
     },
     statusBadge: {
         backgroundColor: '#DBEAFE',
         paddingVertical: 4,
         paddingHorizontal: 10,
         borderRadius: 12,
+        flexShrink: 1,
     },
     statusText: {
         color: '#3B82F6',
         fontWeight: '600',
         fontSize: 12,
+        textAlign: 'center',
     },
     contactPerson: {
         fontSize: 16,

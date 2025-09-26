@@ -140,7 +140,7 @@ const StatusSelector = memo(({
             <Text style={styles.leadTitle}>Select Status</Text>
 
             <ScrollView keyboardShouldPersistTaps="handled">
-              {meetingOutcomeOptions.map((status) => {
+              {meetingOutcomeOptions && meetingOutcomeOptions.map((status) => {
                 const isSelected = selectedStatus?.id === status.id;
                 return (
                   <TouchableOpacity
@@ -224,7 +224,7 @@ const PlanSelector = memo(({
             <Text style={styles.leadTitle}>Select Plan</Text>
 
             <ScrollView keyboardShouldPersistTaps="handled">
-              {plansOptions.map((plan) => {
+              { plansOptions && plansOptions.map((plan) => {
                 const isSelected = selectedPlan?.id === plan.id;
                 return (
                   <TouchableOpacity
@@ -615,7 +615,7 @@ const MeetingTimerScreen = ({ navigation }) => {
 
     setLoadingAction(true);
     try {
-      const lead_id = currentLead?.id;
+      const lead_id = await currentLead?.id;
       console.log('Lead ID:', lead_id);
       const token = await AsyncStorage.getItem('token');
 
@@ -972,7 +972,7 @@ const MeetingTimerScreen = ({ navigation }) => {
                   <Text style={styles.leadTitle}>Select Leads</Text>
 
                   <ScrollView>
-                    {leads.map((lead, index) => (
+                    {leads && leads.map((lead, index) => (
                       <TouchableOpacity
                         key={index}
                         onPress={() => {

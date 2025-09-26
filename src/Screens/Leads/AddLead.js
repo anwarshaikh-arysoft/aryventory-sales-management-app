@@ -153,6 +153,7 @@ export default function AddLead({ navigation }) {
         alternate_number: null, // null instead of ''
         email: '',
         address: '',
+        branches: 1,
         area_locality: '',
         pincode: '',
         gps_location: location.latitude && location.longitude ? `${location.latitude},${location.longitude}` : '',
@@ -277,6 +278,7 @@ export default function AddLead({ navigation }) {
                         </View>
                         <View style={styles.card}>
                             <Text style={styles.sectionTitle}>Location Details</Text>
+                            <InputField icon="location-outline" placeholder="Branches *" value={formData.branches} onChangeText={text => handleChange('branches', parseInt(text))} keyboardType="numeric" />
                             <InputField icon="location-outline" placeholder="Area / Locality *" value={formData.area_locality} onChangeText={text => handleChange('area_locality', text)} />
                             <InputField icon="location-outline" placeholder="Pincode *" value={formData.pincode} onChangeText={text => handleChange('pincode', text)} keyboardType="numeric" />
                             <InputField icon="home-outline" placeholder="Address *" value={formData.address} onChangeText={text => handleChange('address', text)} multiline />
@@ -379,6 +381,7 @@ export default function AddLead({ navigation }) {
                 </View>
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>Location Details</Text>
+                    <InputField icon="location-outline" placeholder="Branches *" value={formData.branches} onChangeText={text => handleChange('branches', text)} keyboardType="numeric" />
                     <InputField icon="location-outline" placeholder="Area / Locality *" value={formData.area_locality} onChangeText={text => handleChange('area_locality', text)} />
                     <InputField icon="location-outline" placeholder="Pincode *" value={formData.pincode} onChangeText={text => handleChange('pincode', text)} keyboardType="numeric" />
                     <InputField icon="home-outline" placeholder="Address *" value={formData.address} onChangeText={text => handleChange('address', text)} multiline />
