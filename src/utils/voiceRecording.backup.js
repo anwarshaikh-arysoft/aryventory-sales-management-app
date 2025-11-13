@@ -1,55 +1,10 @@
 // utils/voiceRecording.js
-// Enhanced version with background recording support
 // Works with Expo Go via expo-av
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
 
 let recordingInstance = null;
-let notificationId = null;
-
-/**
- * Setup notification handler for foreground service (Android)
- */
-Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    // If it's a recording notification, keep it persistent
-    const isRecording = notification.request.content.data?.type === 'recording';
-    
-    return {
-      shouldShowAlert: true,
-      shouldPlaySound: false,
-      shouldSetBadge: false,
-      shouldAutoExpire: !isRecording, // Don't auto-expire recording notifications
-    };
-  },
-});
-
-/**
- * Setup notification channel and category for Android
- */
-async function setupNotificationChannel() {
-    if (Platform.OS !== 'android') return;
-    
-    try {
-        // Setup notification channel
-        await Notifications.setNotificationChannelAsync('recording-channel', {
-            name: 'Recording',
-            importance: Notifications.AndroidImportance.HIGH,
-            sound: false,
-            vibrationPattern: null,
-            enableVibrate: false,
-            showBadge: false,
-            lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-        });
-
-        // Setup notification category for tap handling
-        await Notifications.setNotificationCategoryAsync('recording', []);
-    } catch (error) {
-        console.warn('Failed to setup notification channel:', error);
-    }
-}
 
 /**
  * Ask mic permission and configure audio mode for recording.
@@ -58,12 +13,6 @@ async function ensureReady() {
     const { status } = await Audio.requestPermissionsAsync();
     if (status !== 'granted') {
         throw new Error('Microphone permission not granted');
-    }
-
-    // Request notification permissions for foreground service
-    if (Platform.OS === 'android') {
-        await Notifications.requestPermissionsAsync();
-        await setupNotificationChannel();
     }
 
     const audioMode = {
@@ -76,7 +25,6 @@ async function ensureReady() {
 
     // Set platform-specific interruption modes ONLY if constants exist
     if (Platform.OS === 'ios') {
-        // Use DO_NOT_MIX for better background recording on iOS
         if (typeof Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX !== 'undefined') {
             audioMode.interruptionModeIOS = Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX;
         } else if (typeof Audio.INTERRUPTION_MODE_IOS_MIX_WITH_OTHERS !== 'undefined') {
@@ -84,7 +32,6 @@ async function ensureReady() {
         }
         // If neither exists in your version, we simply don't set it (safe default).
     } else {
-        // Use DO_NOT_MIX for Android for better background recording
         if (typeof Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX !== 'undefined') {
             audioMode.interruptionModeAndroid = Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX;
         } else if (typeof Audio.INTERRUPTION_MODE_ANDROID_DUCK_OTHERS !== 'undefined') {
@@ -93,55 +40,6 @@ async function ensureReady() {
     }
 
     await Audio.setAudioModeAsync(audioMode);
-}
-
-/**
- * Show persistent notification to keep recording active (Android)
- */
-async function showRecordingNotification() {
-    if (Platform.OS !== 'android') return;
-    
-    try {
-        notificationId = await Notifications.scheduleNotificationAsync({
-            content: {
-                title: 'Meeting in progress',
-                body: 'Tap to return to Arysoft Sales',
-                sound: false,
-                priority: Notifications.AndroidNotificationPriority.HIGH,
-                sticky: true,
-                data: {
-                    type: 'recording',
-                    action: 'open_app',
-                },
-                categoryIdentifier: 'recording',
-            },
-            trigger: null, // Show immediately
-            identifier: 'meeting-recording',
-        });
-    } catch (error) {
-        console.warn('Failed to show notification:', error);
-    }
-}
-
-/**
- * Dismiss the recording notification (Android)
- */
-async function dismissRecordingNotification() {
-    if (Platform.OS !== 'android') return;
-    
-    try {
-        // Try to dismiss by identifier first (more reliable)
-        await Notifications.dismissNotificationAsync('meeting-recording');
-        
-        // Also try by notification ID if we have it
-        if (notificationId) {
-            await Notifications.dismissNotificationAsync(notificationId);
-        }
-        
-        notificationId = null;
-    } catch (error) {
-        console.warn('Failed to dismiss notification:', error);
-    }
 }
 
 /**
@@ -158,12 +56,9 @@ export async function startMeetingRecording() {
 
     const recording = new Audio.Recording();
 
-    // Use high quality preset - it's already optimized for background recording
+    // High quality preset (m4a on iOS; m4a/3gp on Android depending on device)
     await recording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY);
     await recording.startAsync();
-
-    // Show persistent notification for Android to maintain foreground service
-    await showRecordingNotification();
 
     recordingInstance = recording;
     return { started: true };
@@ -181,14 +76,11 @@ export async function stopMeetingRecording() {
     try {
         await recordingInstance.stopAndUnloadAsync();
     } catch (e) {
-        console.warn('Error stopping recording:', e);
+        // If already stopped externally
     }
 
     const status = await recordingInstance.getStatusAsync().catch(() => ({}));
     const uri = recordingInstance.getURI();
-
-    // Dismiss notification
-    await dismissRecordingNotification();
 
     // Reset singleton
     recordingInstance = null;
@@ -238,10 +130,6 @@ export async function cancelMeetingRecording() {
         await recordingInstance.stopAndUnloadAsync();
     } catch (e) { }
     const uri = recordingInstance.getURI();
-    
-    // Dismiss notification
-    await dismissRecordingNotification();
-    
     recordingInstance = null;
 
     // delete the partial file if any
@@ -294,3 +182,7 @@ export function buildAudioFormPart(uri, fallbackName = 'meeting-audio') {
 
     return { uri, name, type };
 }
+
+
+
+

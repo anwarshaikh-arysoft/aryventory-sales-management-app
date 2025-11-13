@@ -130,7 +130,7 @@ const MeetingTimerScreen = () => {
         <View style={styles.statusControls}>
           <Text style={styles.statusText}>
             {timerState === 'stopped' ? 'Not Started yet' : 
-             timerState === 'running' ? 'Recording...' : 'Paused'}
+             timerState === 'running' ? 'Started...' : 'Paused'}
           </Text>
           
           <View style={styles.controlButtons}>

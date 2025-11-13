@@ -15,6 +15,7 @@ import {
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { getLeadsByFollowUpDate } from '../../utils/getLeadsByFollowUpDate';
@@ -28,6 +29,9 @@ import axios from 'axios';
 import BASE_URL from '../../config';
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useMeeting } from '../../context/MeetingContext';
+import * as Notifications from 'expo-notifications';
+import * as IntentLauncher from 'expo-intent-launcher';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 // Memoized Timer Component
 const MeetingTimer = memo(({ startTime, isActive, isPaused, pausedTotalMs = 0, pauseStartedAt = null }) => {
@@ -345,6 +349,8 @@ const MeetingTimerScreen = ({ navigation }) => {
   // Meeting Controls
   const [notes, setNotes] = useState('');
   const [recordingUri, setRecordingUri] = useState(null);
+  const [contactPerson, setContactPerson] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
 
   // Leads
   const [leads, setLeads] = useState([]);
@@ -355,6 +361,66 @@ const MeetingTimerScreen = ({ navigation }) => {
 
   // Navigation
   const route = useRoute();
+
+  // Battery Optimization Check (for problematic Android devices)
+  const checkAndRequestBatteryOptimization = useCallback(async () => {
+    if (Platform.OS !== 'android') return true;
+    
+    // Check if we've already shown this prompt
+    const hasShown = await AsyncStorage.getItem('battery_optimization_prompted');
+    if (hasShown) return true;
+    
+    try {
+      const pkg = 'com.anwar.squarebiz.snackadf3a45a30e344f0acc59f65f9f82009';
+      
+      return new Promise((resolve) => {
+        Alert.alert(
+          'Battery Optimization',
+          'For reliable background processing, please disable battery optimization for this app.',
+          [
+            {
+              text: 'Open Settings',
+              onPress: async () => {
+                try {
+                  // Mark as shown
+                  await AsyncStorage.setItem('battery_optimization_prompted', 'true');
+                  
+                  // Try to open battery optimization settings
+                  await IntentLauncher.startActivityAsync(
+                    IntentLauncher.ActivityAction.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    {
+                      data: 'package:' + pkg,
+                    }
+                  );
+                  resolve(true);
+                } catch (e) {
+                  console.warn('Could not open battery settings:', e);
+                  // Fallback to general app settings
+                  try {
+                    await Linking.openSettings();
+                  } catch (err) {
+                    console.warn('Could not open settings:', err);
+                  }
+                  resolve(true);
+                }
+              },
+            },
+            {
+              text: 'Skip',
+              style: 'cancel',
+              onPress: async () => {
+                await AsyncStorage.setItem('battery_optimization_prompted', 'true');
+                resolve(true);
+              },
+            },
+          ]
+        );
+      });
+    } catch (error) {
+      console.warn('Battery optimization check failed:', error);
+      return true;
+    }
+  }, []);
 
   // Memoized callbacks to prevent unnecessary re-renders
   const handleStatusSelect = useCallback((status) => {
@@ -405,6 +471,30 @@ const MeetingTimerScreen = ({ navigation }) => {
     }
   }, [selectedLead?.id]);
 
+  const handleContactPersonChange = useCallback((text) => {
+    setContactPerson(text);
+    if (selectedLead?.id) {
+      const draftKey = `meeting_draft_${selectedLead.id}`;
+      AsyncStorage.getItem(draftKey).then((s) => {
+        const prev = s ? JSON.parse(s) : {};
+        const next = { ...prev, contactPerson: text };
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [selectedLead?.id]);
+
+  const handleMobileNumberChange = useCallback((text) => {
+    setMobileNumber(text);
+    if (selectedLead?.id) {
+      const draftKey = `meeting_draft_${selectedLead.id}`;
+      AsyncStorage.getItem(draftKey).then((s) => {
+        const prev = s ? JSON.parse(s) : {};
+        const next = { ...prev, mobileNumber: text };
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
+      }).catch(() => {});
+    }
+  }, [selectedLead?.id]);
+
   // Fetch meeting outcomes
   const fetchMeetingOutcomes = useCallback(async () => {
     try {
@@ -444,10 +534,10 @@ const MeetingTimerScreen = ({ navigation }) => {
     setLoadingLeads(true);
     try {
       const data = await getLeadsByFollowUpDate(page);
-      setLeads(data.data);
+      setLeads(data.leads.data);
       setPagination({
-        current_page: data.current_page,
-        last_page: data.last_page,
+        current_page: data.leads.current_page,
+        last_page: data.leads.last_page,
       });
     } finally {
       setLoadingLeads(false);
@@ -493,10 +583,16 @@ const MeetingTimerScreen = ({ navigation }) => {
         // }
 
         if (endpoint === '/meetings/start') {
+          // Check battery optimization on first meeting start
+          await checkAndRequestBatteryOptimization();
+          
           try {
             await startMeetingRecording();
+            // Keep device awake during recording
+            await activateKeepAwakeAsync();
+            console.log('Keep-awake activated for recording');
           } catch (e) {
-            Alert.alert('Mic Error', e.message || 'Unable to start recording');
+            Alert.alert('101 Error', e.message || 'Unable to start 101');
             return;
           }
         }
@@ -541,8 +637,10 @@ const MeetingTimerScreen = ({ navigation }) => {
           // Add status id to form data
           formData.append('lead_status_id', String(statusId));
 
-          // Stop recording
+          // Stop recording and deactivate keep-awake
           const { uri } = await stopMeetingRecording();
+          deactivateKeepAwake();
+          console.log('Keep-awake deactivated after recording stopped');
           setRecordingUri(uri);
 
           // Build audio part
@@ -559,6 +657,12 @@ const MeetingTimerScreen = ({ navigation }) => {
           
           // if notes then add it to the form else add empty string
           if (notes) {formData.append('notes', notes)} else {formData.append('notes', '')}
+          
+          // if contactPerson then add it to the form else add empty string
+          if (contactPerson) {formData.append('contact_person', contactPerson)} else {formData.append('contact_person', '')}
+          
+          // if mobileNumber then add it to the form else add empty string
+          if (mobileNumber) {formData.append('mobile_number', mobileNumber)} else {formData.append('mobile_number', '')}
 
           // Clear persisted draft on successful end
           try { await AsyncStorage.removeItem(`meeting_draft_${selectedLead.id}`); } catch {}
@@ -592,7 +696,7 @@ const MeetingTimerScreen = ({ navigation }) => {
         
         // Update context based on action
         if (endpoint === '/meetings/start') {
-          startMeeting(currentLead, new Date().toISOString());          
+          startMeeting(selectedLead, new Date().toISOString());          
         } else if (endpoint === '/meetings/end') {
           endMeeting();
           navigation.navigate('Home');
@@ -602,10 +706,14 @@ const MeetingTimerScreen = ({ navigation }) => {
     } catch (err) {
       console.error(err);
       Alert.alert('Error', err.response?.data?.message || 'Something went wrong');
+      // If error occurred during start, make sure to deactivate keep-awake
+      if (endpoint === '/meetings/start') {
+        deactivateKeepAwake();
+      }
     } finally {
       setLoadingAction(null);
     }
-  }, [selectedLead, nextFollowUpDate, selectedStatus, selectedPlan, recordingUri, notes, startMeeting, endMeeting, updateMeetingState]);
+  }, [selectedLead, nextFollowUpDate, selectedStatus, selectedPlan, recordingUri, notes, contactPerson, mobileNumber, startMeeting, endMeeting, updateMeetingState, checkAndRequestBatteryOptimization]);
 
   // Fetch meeting status
   const fetchMeetingStatus = useCallback(async () => {
@@ -614,8 +722,8 @@ const MeetingTimerScreen = ({ navigation }) => {
     const startTime = Date.now();
 
     setLoadingAction(true);
-    try {
-      const lead_id = await currentLead?.id;
+    try {      
+      const lead_id = currentLead?.id;
       console.log('Lead ID:', lead_id);
       const token = await AsyncStorage.getItem('token');
 
@@ -685,6 +793,8 @@ const MeetingTimerScreen = ({ navigation }) => {
           selectedStatus,
           selectedPlan,
           notes,
+          contactPerson,
+          mobileNumber,
           nextFollowUpDate: nextFollowUpDate ? nextFollowUpDate.toISOString() : null,
           isRecordingPaused: true,
           pausedTotalMs,
@@ -693,7 +803,7 @@ const MeetingTimerScreen = ({ navigation }) => {
         try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch {}
       }
     }
-  }, [selectedLead?.id, selectedStatus, selectedPlan, notes, nextFollowUpDate, pausedTotalMs, updateMeetingState]);
+  }, [selectedLead?.id, selectedStatus, selectedPlan, notes, contactPerson, mobileNumber, nextFollowUpDate, pausedTotalMs, updateMeetingState]);
 
   const onResumeRecording = useCallback(async () => {
     const res = await resumeMeetingRecording();
@@ -713,6 +823,8 @@ const MeetingTimerScreen = ({ navigation }) => {
           selectedStatus,
           selectedPlan,
           notes,
+          contactPerson,
+          mobileNumber,
           nextFollowUpDate: nextFollowUpDate ? nextFollowUpDate.toISOString() : null,
           isRecordingPaused: false,
           pausedTotalMs: newPausedTotalMs,
@@ -721,7 +833,7 @@ const MeetingTimerScreen = ({ navigation }) => {
         try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch {}
       }
     }
-  }, [selectedLead?.id, selectedStatus, selectedPlan, notes, nextFollowUpDate, pausedTotalMs, pauseStartedAt, updateMeetingState]);
+  }, [selectedLead?.id, selectedStatus, selectedPlan, notes, contactPerson, mobileNumber, nextFollowUpDate, pausedTotalMs, pauseStartedAt, updateMeetingState]);
 
   // Effects
   useEffect(() => {
@@ -759,6 +871,8 @@ const MeetingTimerScreen = ({ navigation }) => {
           if (draft.selectedStatus) setSelectedStatus(draft.selectedStatus);
           if (draft.selectedPlan) setSelectedPlan(draft.selectedPlan);
           if (typeof draft.notes === 'string') setNotes(draft.notes);
+          if (typeof draft.contactPerson === 'string') setContactPerson(draft.contactPerson);
+          if (typeof draft.mobileNumber === 'string') setMobileNumber(draft.mobileNumber);
           if (draft.nextFollowUpDate) setNextFollowUpDate(new Date(draft.nextFollowUpDate));
           if (typeof draft.isRecordingPaused === 'boolean') {
             updateMeetingState({ isRecordingPaused: draft.isRecordingPaused });
@@ -787,6 +901,8 @@ const MeetingTimerScreen = ({ navigation }) => {
           if (draft.selectedStatus) setSelectedStatus(draft.selectedStatus);
           if (draft.selectedPlan) setSelectedPlan(draft.selectedPlan);
           if (typeof draft.notes === 'string') setNotes(draft.notes);
+          if (typeof draft.contactPerson === 'string') setContactPerson(draft.contactPerson);
+          if (typeof draft.mobileNumber === 'string') setMobileNumber(draft.mobileNumber);
           if (draft.nextFollowUpDate) setNextFollowUpDate(new Date(draft.nextFollowUpDate));
           if (typeof draft.isRecordingPaused === 'boolean') {
             updateMeetingState({ isRecordingPaused: draft.isRecordingPaused });
@@ -810,50 +926,92 @@ const MeetingTimerScreen = ({ navigation }) => {
     }
   }, [meetingActive, currentLead]);
 
+  // Handle notification taps to bring app to foreground
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data;
+      
+      // If it's a recording notification tap, just ensure we're on the Meeting screen
+      if (data?.type === 'recording' && data?.action === 'open_app') {
+        // The app is already being brought to foreground by default
+        // No need to stop recording - that's the whole point!
+        console.log('Recording notification tapped - app brought to foreground');
+      }
+    });
+
+    return () => subscription.remove();
+  }, []);
+
+  // Cleanup: Deactivate keep-awake when component unmounts
+  useEffect(() => {
+    return () => {
+      // Make sure to deactivate keep-awake if user navigates away
+      deactivateKeepAwake();
+      console.log('Component unmounted - keep-awake deactivated');
+    };
+  }, []);
+
   // Memoized components to prevent unnecessary renders
   const leadSelector = useMemo(() => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Select Meeting</Text>
-      <TouchableOpacity style={styles.dropdown} onPress={() => setModalVisible(true)}>        
+      <TouchableOpacity 
+        style={[styles.dropdown, meetingActive && styles.dropdownDisabled]} 
+        onPress={() => {
+          if (!meetingActive) {
+            setModalVisible(true);
+          }
+        }}
+        disabled={meetingActive}
+      >        
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           {selectedLead ? (
             <>
-              <Text style={styles.dropdownText}>{selectedLead.contact_person} </Text>
-              <ArrowRight size={18} />
-              <Text style={styles.dropdownText}> {selectedLead.shop_name}</Text>
+              <Text style={[styles.dropdownText, meetingActive && styles.dropdownTextDisabled]}>
+                {selectedLead.contact_person} 
+              </Text>
+              <ArrowRight size={18} color={meetingActive ? "#999" : "#666"} />
+              <Text style={[styles.dropdownText, meetingActive && styles.dropdownTextDisabled]}>
+                {" "}{selectedLead.shop_name}
+              </Text>
             </>
           ) : (
-            <Text style={styles.dropdownText}>Choose from today's schedule</Text>
+            <Text style={[styles.dropdownText, meetingActive && styles.dropdownTextDisabled]}>
+              Choose from today's schedule
+            </Text>
           )}
         </View>
-        <Ionicons name="chevron-down" size={20} color="#666" />
+        <Ionicons name="chevron-down" size={20} color={meetingActive ? "#999" : "#666"} />
       </TouchableOpacity>      
     </View>
-  ), [selectedLead]);
+  ), [selectedLead, meetingActive]);
 
-  const meetingInfo = useMemo(() => (
-    <View style={styles.meetingInfo}>
-      <View style={styles.meetingHeader}>
-        <View>
-          <Text style={styles.meetingName}>{currentLead?.contact_person}</Text>
-          <Text style={styles.meetingLocation}>At {currentLead?.shop_name}</Text>
-        </View>
-        <View style={styles.recordingControls}>
-          {isRecordingPaused ? (
-            <TouchableOpacity style={styles.recordButton} onPress={onResumeRecording}>
-              <MaterialIcons name="play-arrow" size={16} color="#4CAF50" />
-              <Text style={styles.recordText}>Resume</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.recordButton} onPress={onPauseRecording}>
-              <MaterialIcons name="pause" size={16} color="#ff9500" />
-              <Text style={styles.recordText}>Pause</Text>        
-            </TouchableOpacity>
-          )}
+  const meetingInfo = useMemo(() => {
+    
+    return (
+      <View style={styles.meetingInfo}>
+        <View style={styles.meetingHeader}>
+          <View>
+            <Text style={styles.meetingName}>{currentLead?.contact_person}</Text>
+            <Text style={styles.meetingLocation}>At {currentLead?.shop_name}</Text>
+          </View>
+          <View style={styles.recordingControls}>
+            {isRecordingPaused ? (
+              <TouchableOpacity style={styles.recordButton} onPress={onResumeRecording}>
+                <MaterialIcons name="play-arrow" size={16} color="#4CAF50" />
+                <Text style={styles.recordText}>Resume</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.recordButton} onPress={onPauseRecording}>
+                <MaterialIcons name="pause" size={16} color="#ff9500" />
+                <Text style={styles.recordText}>Pause</Text>        
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
-    </View>
-  ), [currentLead?.contact_person, currentLead?.shop_name, isRecordingPaused, onPauseRecording, onResumeRecording]);
+    )
+  }, [currentLead?.contact_person, currentLead?.shop_name, isRecordingPaused, onPauseRecording, onResumeRecording]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -918,6 +1076,31 @@ const MeetingTimerScreen = ({ navigation }) => {
                         multiline
                         value={notes}
                         onChangeText={handleNotesChange}
+                      />
+                    </View>
+
+                    {/* Contact Person */}
+                    <View style={styles.notesSection}>
+                      <Text style={styles.sectionTitle}>Contact Person</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter contact person name..."
+                        placeholderTextColor="#999"
+                        value={selectedLead?.contact_person || contactPerson}
+                        onChangeText={handleContactPersonChange}
+                      />
+                    </View>
+
+                    {/* Mobile Number */}
+                    <View style={styles.notesSection}>
+                      <Text style={styles.sectionTitle}>Mobile Number</Text>
+                      <TextInput
+                        style={styles.textInput}
+                        placeholder="Enter mobile number..."
+                        placeholderTextColor="#999"
+                        keyboardType="phone-pad"
+                        value={selectedLead?.mobile_number || mobileNumber}
+                        onChangeText={handleMobileNumberChange}
                       />
                     </View>
 
@@ -1085,9 +1268,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
+  dropdownDisabled: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.6,
+    borderColor: '#d0d0d0',
+  },
   dropdownText: {
     color: '#666',
     fontSize: 14,
+  },
+  dropdownTextDisabled: {
+    color: '#999',
   },
   meetingInfo: {
   },
@@ -1212,6 +1403,16 @@ const styles = StyleSheet.create({
     padding: 15,
     height: 120,
     textAlignVertical: 'top',
+    fontSize: 14,
+    color: '#000',
+    marginBottom: 15,
+  },
+  textInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    padding: 15,
     fontSize: 14,
     color: '#000',
     marginBottom: 15,
