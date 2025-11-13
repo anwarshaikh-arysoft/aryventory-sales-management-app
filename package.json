@@ -39,7 +39,11 @@
     "react-native-screens": "~4.11.1",
     "react-native-svg": "^15.12.1",
     "react-native-toast-message": "^2.3.3",
-    "react-native-vector-icons": "*"
+    "react-native-vector-icons": "*",
+    "expo-notifications": "~0.31.4",
+    "expo-intent-launcher": "~12.1.5",
+    "expo-keep-awake": "~14.1.4",
+    "expo-dev-client": "~5.2.4"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

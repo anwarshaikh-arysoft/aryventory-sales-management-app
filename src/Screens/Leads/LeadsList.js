@@ -183,7 +183,7 @@ export default function LeadsList(props) {
       controller = new AbortController();
       const qs = buildQueryParams(pageNum);
       console.log('Query String:', qs);
-      const res = await fetch(`${BASE_URL}/sales-executive/leads?${qs}`, {
+      const res = await fetch(`${BASE_URL}/sales-executive/leads-advanced?${qs}`, {
         headers: {
           Authorization: `Bearer ${token}`,
           Accept: 'application/json',
