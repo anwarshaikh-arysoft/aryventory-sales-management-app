@@ -205,12 +205,14 @@ export default function ShiftHistoryScreen() {
 
         {/* Current Day filter */}
         <TouchableOpacity style={filter == 'today' ? styles.ActivefilterBtn : styles.filterBtn} onPress={() => { clearDateFilters(); setFilter('today'); }}>
-          <Icon name='calendar-number-outline' size={15} style={filter == 'today' ? styles.ActivefilterBtnText : styles.filterBtnText} /> <Text style={filter == 'today' ? styles.ActivefilterBtnText : styles.filterBtnText}> Today</Text>
+          <Icon name='calendar-number-outline' size={15} style={filter == 'today' ? styles.ActivefilterBtnText : styles.filterBtnText} /> 
+          <Text style={filter == 'today' ? styles.ActivefilterBtnText : styles.filterBtnText}> Today</Text>
         </TouchableOpacity>
 
         {/* This Week Filter starts from sunday */}
         <TouchableOpacity style={filter == 'this_week' ? styles.ActivefilterBtn : styles.filterBtn} onPress={() => { clearDateFilters(); setFilter('this_week'); }}>
-          <Icon name='calendar-number-outline' size={15} style={filter == 'this_week' ? styles.ActivefilterBtnText : styles.filterBtnText} /> <Text style={filter == 'this_week' ? styles.ActivefilterBtnText : styles.filterBtnText}>This Week</Text>
+          <Icon name='calendar-number-outline' size={15} style={filter == 'this_week' ? styles.ActivefilterBtnText : styles.filterBtnText} /> 
+          <Text style={filter == 'this_week' ? styles.ActivefilterBtnText : styles.filterBtnText}>This Week</Text>
         </TouchableOpacity>
 
         {/* Date Range Filter Toggle */}

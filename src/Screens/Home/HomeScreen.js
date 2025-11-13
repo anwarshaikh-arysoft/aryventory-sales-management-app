@@ -257,8 +257,8 @@ export default function HomeScreen({ navigation }) {
       setLeads(data.leads.data); // `data` is the Laravel paginated object
       setLeadsCount(data.total_leads);
       setPagination({
-        current_page: data.current_page,
-        last_page: data.last_page,
+        current_page: data.leads.current_page,
+        last_page: data.leads.last_page,
       });
 
     } catch (err) {
@@ -444,13 +444,12 @@ export default function HomeScreen({ navigation }) {
           </View> */}
 
           {/* Schedule */}
-
           <View>
             {/* Follow-up Leads */}
             <View style={[styles.recentActivityHeader]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, }}>
                 <Text style={styles.sectionTitle}>Upcoming Follow-ups</Text>
-                <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{leads.length}</Text>
+                <Text style={[styles.sectionTitle, { backgroundColor: 'black', paddingHorizontal: 5, color: 'white', borderRadius: 100, }]}>{leadsCount}</Text>
               </View>
               <TouchableOpacity style={{ backgroundColor: '#dbeafe', padding: 8, borderRadius: 12, }} onPress={() => navigation.navigate('leadlist')}>
                 <Text style={{ color: '#2563eb', fontWeight: 'bold' }}>View All</Text>

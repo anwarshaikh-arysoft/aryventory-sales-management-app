@@ -6,8 +6,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { Audio } from 'expo-av';
 import BASE_URL from '../../config';
+import { useAuth } from '../../context/AuthContext';
 
 export default function ShowLead() {
+    const { user } = useAuth();
     const navigation = useNavigation();
     const route = useRoute();
     const { lead } = route.params;
@@ -211,7 +213,7 @@ export default function ShowLead() {
                 {/* Media Section */}
                 <View style={styles.mediaSection}>
                     {/* Recorded Audios */}
-                    {meeting.recorded_audios && meeting.recorded_audios.length > 0 && (
+                    {meeting.recorded_audios && meeting.recorded_audios.length > 0 && user.designation === "Administrator" && (
                         <View style={styles.mediaGroup}>
                             <Text style={styles.mediaGroupTitle}>Audio Recordings</Text>
                             {meeting.recorded_audios.map((audio, audioIndex) => {

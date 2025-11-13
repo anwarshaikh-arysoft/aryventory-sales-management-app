@@ -132,6 +132,7 @@ export default function AddLead({ navigation }) {
     const updateLocation = async () => {
         const coords = await captureLocation();
         if (coords) {
+            
             const locationString = `${coords.latitude},${coords.longitude}`;
             setLocation({ latitude: coords.latitude, longitude: coords.longitude });
             setFormData(prev => ({
@@ -271,8 +272,8 @@ export default function AddLead({ navigation }) {
                         <View style={styles.card}>
                             <Text style={styles.sectionTitle}>Shop Information</Text>
                             <InputField icon="business-outline" placeholder="Shop Name *" value={formData.shop_name} onChangeText={text => handleChange('shop_name', text)} />
-                            <InputField icon="person-outline" placeholder="Name *" value={formData.contact_person} onChangeText={text => handleChange('contact_person', text)} />
-                            <InputField icon="call-outline" placeholder="Mobile Number *" value={formData.mobile_number} onChangeText={text => handleChange('mobile_number', text)} keyboardType="phone-pad" />
+                            <InputField icon="person-outline" placeholder="Name" value={formData.contact_person} onChangeText={text => handleChange('contact_person', text)} />
+                            <InputField icon="call-outline" placeholder="Mobile Number" value={formData.mobile_number} onChangeText={text => handleChange('mobile_number', text)} keyboardType="phone-pad" />
                             <InputField icon="call-outline" placeholder="Alternate Number" value={formData.alternate_number ?? ''} onChangeText={text => handleChange('alternate_number', text)} keyboardType="phone-pad" />
                             <InputField icon="mail-outline" placeholder="Email" value={formData.email} onChangeText={text => handleChange('email', text)} keyboardType="email-address" />
                         </View>
@@ -374,8 +375,8 @@ export default function AddLead({ navigation }) {
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>Shop Information</Text>
                     <InputField icon="business-outline" placeholder="Shop Name *" value={formData.shop_name} onChangeText={text => handleChange('shop_name', text)} />
-                    <InputField icon="person-outline" placeholder="Name *" value={formData.contact_person} onChangeText={text => handleChange('contact_person', text)} />
-                    <InputField icon="call-outline" placeholder="Mobile Number *" value={formData.mobile_number} onChangeText={text => handleChange('mobile_number', text)} keyboardType="phone-pad" />
+                    <InputField icon="person-outline" placeholder="Name" value={formData.contact_person} onChangeText={text => handleChange('contact_person', text)} />
+                    <InputField icon="call-outline" placeholder="Mobile Number" value={formData.mobile_number} onChangeText={text => handleChange('mobile_number', text)} keyboardType="phone-pad" />
                     <InputField icon="call-outline" placeholder="Alternate Number" value={formData.alternate_number ?? ''} onChangeText={text => handleChange('alternate_number', text)} keyboardType="phone-pad" />
                     <InputField icon="mail-outline" placeholder="Email" value={formData.email} onChangeText={text => handleChange('email', text)} keyboardType="email-address" />
                 </View>

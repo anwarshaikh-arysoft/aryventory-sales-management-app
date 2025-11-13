@@ -10,6 +10,7 @@ export async function captureLocation() {
 
   try {
     const location = await Location.getCurrentPositionAsync({});
+    console.log('location', location);
     return location.coords;
   } catch {
     Alert.alert('Error', 'Could not fetch location');
