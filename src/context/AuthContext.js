@@ -25,6 +25,60 @@ export const AuthProvider = ({ children }) => {
     checkAuthState();
   }, []);
 
+  // Set up axios interceptor for 401 errors
+  useEffect(() => {
+    // Request interceptor to add token to headers
+    const requestInterceptor = axios.interceptors.request.use(
+      async (config) => {
+        const storedToken = await AsyncStorage.getItem('token');
+        if (storedToken && config.headers) {
+          config.headers.Authorization = `Bearer ${storedToken}`;
+        }
+        return config;
+      },
+      (error) => {
+        return Promise.reject(error);
+      }
+    );
+
+    // Response interceptor to handle 401 errors
+    const responseInterceptor = axios.interceptors.response.use(
+      (response) => {
+        return response;
+      },
+      async (error) => {
+        if (error.response?.status === 401) {
+          // Skip 401 handling for authentication endpoints (login, register, etc.)
+          const authEndpoints = ['/login', '/register', '/forgot-password', '/reset-password', '/verify-otp'];
+          const requestUrl = error.config?.url || '';
+          const isAuthEndpoint = authEndpoints.some(endpoint => requestUrl.includes(endpoint));
+          
+          if (!isAuthEndpoint) {
+            // Unauthorized error on protected endpoint - logout user
+            console.log('Unauthorized error detected, logging out...');
+            
+            // Clear storage and state
+            try {
+              await AsyncStorage.removeItem('token');
+              await AsyncStorage.removeItem('user');
+              setToken(null);
+              setUser(null);
+            } catch (err) {
+              console.error('Error during logout:', err);
+            }
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    // Cleanup interceptors on unmount
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+      axios.interceptors.response.eject(responseInterceptor);
+    };
+  }, []);
+
   const checkAuthState = async () => {
     try {
       const storedUser = await AsyncStorage.getItem('user');

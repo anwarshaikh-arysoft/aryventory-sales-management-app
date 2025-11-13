@@ -696,7 +696,7 @@ const MeetingTimerScreen = ({ navigation }) => {
         
         // Update context based on action
         if (endpoint === '/meetings/start') {
-          startMeeting(currentLead, new Date().toISOString());          
+          startMeeting(selectedLead, new Date().toISOString());          
         } else if (endpoint === '/meetings/end') {
           endMeeting();
           navigation.navigate('Home');
@@ -723,7 +723,7 @@ const MeetingTimerScreen = ({ navigation }) => {
 
     setLoadingAction(true);
     try {      
-      const lead_id = await currentLead?.id;
+      const lead_id = currentLead?.id;
       console.log('Lead ID:', lead_id);
       const token = await AsyncStorage.getItem('token');
 
@@ -955,46 +955,63 @@ const MeetingTimerScreen = ({ navigation }) => {
   const leadSelector = useMemo(() => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Select Meeting</Text>
-      <TouchableOpacity style={styles.dropdown} onPress={() => setModalVisible(true)}>        
+      <TouchableOpacity 
+        style={[styles.dropdown, meetingActive && styles.dropdownDisabled]} 
+        onPress={() => {
+          if (!meetingActive) {
+            setModalVisible(true);
+          }
+        }}
+        disabled={meetingActive}
+      >        
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           {selectedLead ? (
             <>
-              <Text style={styles.dropdownText}>{selectedLead.contact_person} </Text>
-              <ArrowRight size={18} />
-              <Text style={styles.dropdownText}> {selectedLead.shop_name}</Text>
+              <Text style={[styles.dropdownText, meetingActive && styles.dropdownTextDisabled]}>
+                {selectedLead.contact_person} 
+              </Text>
+              <ArrowRight size={18} color={meetingActive ? "#999" : "#666"} />
+              <Text style={[styles.dropdownText, meetingActive && styles.dropdownTextDisabled]}>
+                {" "}{selectedLead.shop_name}
+              </Text>
             </>
           ) : (
-            <Text style={styles.dropdownText}>Choose from today's schedule</Text>
+            <Text style={[styles.dropdownText, meetingActive && styles.dropdownTextDisabled]}>
+              Choose from today's schedule
+            </Text>
           )}
         </View>
-        <Ionicons name="chevron-down" size={20} color="#666" />
+        <Ionicons name="chevron-down" size={20} color={meetingActive ? "#999" : "#666"} />
       </TouchableOpacity>      
     </View>
-  ), [selectedLead]);
+  ), [selectedLead, meetingActive]);
 
-  const meetingInfo = useMemo(() => (
-    <View style={styles.meetingInfo}>
-      <View style={styles.meetingHeader}>
-        <View>
-          <Text style={styles.meetingName}>{currentLead?.contact_person}</Text>
-          <Text style={styles.meetingLocation}>At {currentLead?.shop_name}</Text>
-        </View>
-        <View style={styles.recordingControls}>
-          {isRecordingPaused ? (
-            <TouchableOpacity style={styles.recordButton} onPress={onResumeRecording}>
-              <MaterialIcons name="play-arrow" size={16} color="#4CAF50" />
-              <Text style={styles.recordText}>Resume</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.recordButton} onPress={onPauseRecording}>
-              <MaterialIcons name="pause" size={16} color="#ff9500" />
-              <Text style={styles.recordText}>Pause</Text>        
-            </TouchableOpacity>
-          )}
+  const meetingInfo = useMemo(() => {
+    
+    return (
+      <View style={styles.meetingInfo}>
+        <View style={styles.meetingHeader}>
+          <View>
+            <Text style={styles.meetingName}>{currentLead?.contact_person}</Text>
+            <Text style={styles.meetingLocation}>At {currentLead?.shop_name}</Text>
+          </View>
+          <View style={styles.recordingControls}>
+            {isRecordingPaused ? (
+              <TouchableOpacity style={styles.recordButton} onPress={onResumeRecording}>
+                <MaterialIcons name="play-arrow" size={16} color="#4CAF50" />
+                <Text style={styles.recordText}>Resume</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.recordButton} onPress={onPauseRecording}>
+                <MaterialIcons name="pause" size={16} color="#ff9500" />
+                <Text style={styles.recordText}>Pause</Text>        
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </View>
-    </View>
-  ), [currentLead?.contact_person, currentLead?.shop_name, isRecordingPaused, onPauseRecording, onResumeRecording]);
+    )
+  }, [currentLead?.contact_person, currentLead?.shop_name, isRecordingPaused, onPauseRecording, onResumeRecording]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1251,9 +1268,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e0e0e0',
   },
+  dropdownDisabled: {
+    backgroundColor: '#f5f5f5',
+    opacity: 0.6,
+    borderColor: '#d0d0d0',
+  },
   dropdownText: {
     color: '#666',
     fontSize: 14,
+  },
+  dropdownTextDisabled: {
+    color: '#999',
   },
   meetingInfo: {
   },

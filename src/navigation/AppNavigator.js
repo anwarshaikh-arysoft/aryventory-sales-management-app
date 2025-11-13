@@ -111,7 +111,7 @@ export default function AppNavigator() {
             </>
           )}
         </Stack.Navigator>
-        {/* <MeetingTimerOverlay /> */}
+        <MeetingTimerOverlay />
         <Toast />
       </NavigationContainer>
     </MeetingProvider>
