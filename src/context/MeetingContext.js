@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import BASE_URL from '../config';
+import { dismissRecordingNotification } from '../utils/voiceRecording';
 
 const MeetingContext = createContext({});
 
@@ -28,17 +29,155 @@ export const MeetingProvider = ({ children }) => {
 
   const checkActiveMeeting = useCallback(async () => {
     try {
+      // First, always verify with backend if there's an active meeting
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        // No token means user is not logged in, clear everything
+        await AsyncStorage.removeItem('active_meeting');
+        setMeetingActive(false);
+        setMeetingStartTime(null);
+        setCurrentLead(null);
+        setIsRecordingPaused(false);
+        setPausedTotalMs(0);
+        setPauseStartedAt(null);
+        // Dismiss notification since user is not logged in
+        try {
+          await dismissRecordingNotification();
+        } catch (err) {
+          console.error('Failed to dismiss notification:', err);
+        }
+        return;
+      }
+
       // Check if there's a stored active meeting in AsyncStorage
       const storedMeeting = await AsyncStorage.getItem('active_meeting');
+      
       if (storedMeeting) {
         const meetingData = JSON.parse(storedMeeting);
-        setMeetingActive(true);
-        setMeetingStartTime(meetingData.meetingStartTime);
-        setCurrentLead(meetingData.currentLead);
-        setIsRecordingPaused(meetingData.isRecordingPaused || false);
-        setPausedTotalMs(meetingData.pausedTotalMs || 0);
-        setPauseStartedAt(meetingData.pauseStartedAt || null);
+        
+        // Validate meeting data structure
+        if (!meetingData.meetingActive || !meetingData.meetingStartTime || !meetingData.currentLead) {
+          console.log('Invalid meeting data structure, clearing...');
+          await AsyncStorage.removeItem('active_meeting');
+          setMeetingActive(false);
+          setMeetingStartTime(null);
+          setCurrentLead(null);
+          setIsRecordingPaused(false);
+          setPausedTotalMs(0);
+          setPauseStartedAt(null);
+          // Dismiss notification since meeting data is invalid
+          try {
+            await dismissRecordingNotification();
+          } catch (err) {
+            console.error('Failed to dismiss notification:', err);
+          }
+          return;
+        }
+
+        // Check if meeting start time is valid and not too old (more than 24 hours = stale)
+        const startTime = new Date(meetingData.meetingStartTime);
+        const now = new Date();
+        const hoursSinceStart = (now - startTime) / (1000 * 60 * 60);
+        
+        if (isNaN(startTime.getTime()) || hoursSinceStart > 24) {
+          console.log('Meeting data is stale (older than 24 hours) or invalid, clearing...');
+          await AsyncStorage.removeItem('active_meeting');
+          setMeetingActive(false);
+          setMeetingStartTime(null);
+          setCurrentLead(null);
+          setIsRecordingPaused(false);
+          setPausedTotalMs(0);
+          setPauseStartedAt(null);
+          // Dismiss notification since meeting is stale
+          try {
+            await dismissRecordingNotification();
+          } catch (err) {
+            console.error('Failed to dismiss notification:', err);
+          }
+          return;
+        }
+
+        // Verify with backend if meeting is actually still active
+        try {
+          const lead_id = meetingData.currentLead?.id;
+          if (lead_id) {
+            const res = await axios.post(
+              `${BASE_URL}/meetings/check/status`,
+              { lead_id },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  Accept: 'application/json',
+                },
+                timeout: 10000,
+              }
+            );
+
+            const data = res.data;
+            
+            // If backend says no active meeting, clear local storage and dismiss notification
+            if (!data.exists || !data.data?.meeting_start_time) {
+              console.log('Backend confirms no active meeting, clearing local storage...');
+              await AsyncStorage.removeItem('active_meeting');
+              setMeetingActive(false);
+              setMeetingStartTime(null);
+              setCurrentLead(null);
+              setIsRecordingPaused(false);
+              setPausedTotalMs(0);
+              setPauseStartedAt(null);
+              // Dismiss notification since meeting is not active
+              try {
+                await dismissRecordingNotification();
+              } catch (err) {
+                console.error('Failed to dismiss notification:', err);
+              }
+              return;
+            }
+
+            // Backend confirms meeting is active, restore state
+            setMeetingActive(true);
+            setMeetingStartTime(data.data.meeting_start_time || meetingData.meetingStartTime);
+            setCurrentLead(meetingData.currentLead);
+            setIsRecordingPaused(meetingData.isRecordingPaused || false);
+            setPausedTotalMs(meetingData.pausedTotalMs || 0);
+            setPauseStartedAt(meetingData.pauseStartedAt || null);
+          } else {
+            // No lead_id, clear the meeting
+            console.log('No lead_id found in stored meeting, clearing...');
+            await AsyncStorage.removeItem('active_meeting');
+            setMeetingActive(false);
+            setMeetingStartTime(null);
+            setCurrentLead(null);
+            setIsRecordingPaused(false);
+            setPausedTotalMs(0);
+            setPauseStartedAt(null);
+            // Dismiss notification since no lead_id
+            try {
+              await dismissRecordingNotification();
+            } catch (err) {
+              console.error('Failed to dismiss notification:', err);
+            }
+          }
+        } catch (apiErr) {
+          // If API call fails, be conservative and clear the meeting
+          // This prevents showing stale meeting data
+          console.error('Failed to verify meeting with backend, clearing local storage:', apiErr);
+          await AsyncStorage.removeItem('active_meeting');
+          setMeetingActive(false);
+          setMeetingStartTime(null);
+          setCurrentLead(null);
+          setIsRecordingPaused(false);
+          setPausedTotalMs(0);
+          setPauseStartedAt(null);
+          // Dismiss notification since we can't verify meeting is active
+          try {
+            await dismissRecordingNotification();
+          } catch (err) {
+            console.error('Failed to dismiss notification:', err);
+          }
+        }
       } else {
+        // No stored meeting, ensure state is cleared
         setMeetingActive(false);
         setMeetingStartTime(null);
         setCurrentLead(null);
@@ -48,13 +187,24 @@ export const MeetingProvider = ({ children }) => {
       }
     } catch (err) {
       console.error('Failed to check active meeting:', err);
-      // On error, assume no active meeting
+      // On error, clear any potentially corrupted data and assume no active meeting
+      try {
+        await AsyncStorage.removeItem('active_meeting');
+      } catch (clearErr) {
+        console.error('Failed to clear corrupted meeting data:', clearErr);
+      }
       setMeetingActive(false);
       setMeetingStartTime(null);
       setCurrentLead(null);
       setIsRecordingPaused(false);
       setPausedTotalMs(0);
       setPauseStartedAt(null);
+      // Dismiss notification on error
+      try {
+        await dismissRecordingNotification();
+      } catch (err) {
+        console.error('Failed to dismiss notification:', err);
+      }
     }
 
   }, []);
@@ -92,6 +242,13 @@ export const MeetingProvider = ({ children }) => {
     setPausedTotalMs(0);
     setPauseStartedAt(null);
     
+    // Dismiss the notification when meeting ends
+    try {
+      await dismissRecordingNotification();
+    } catch (err) {
+      console.error('Failed to dismiss notification:', err);
+    }
+    
     // Clear persisted meeting state
     try {
       await AsyncStorage.removeItem('active_meeting');
@@ -108,8 +265,18 @@ export const MeetingProvider = ({ children }) => {
     if (updates.pausedTotalMs !== undefined) setPausedTotalMs(updates.pausedTotalMs);
     if (updates.pauseStartedAt !== undefined) setPauseStartedAt(updates.pauseStartedAt);
     
+    // If meeting is being set to inactive, clear AsyncStorage and dismiss notification
+    if (updates.meetingActive === false) {
+      try {
+        await AsyncStorage.removeItem('active_meeting');
+        // Dismiss the notification when meeting becomes inactive
+        await dismissRecordingNotification();
+      } catch (err) {
+        console.error('Failed to clear meeting state:', err);
+      }
+    } 
     // Persist updated state if meeting is active
-    if (updates.meetingActive !== false) {
+    else if (updates.meetingActive !== false) {
       try {
         const currentState = {
           meetingActive: updates.meetingActive !== undefined ? updates.meetingActive : meetingActive,
@@ -125,6 +292,10 @@ export const MeetingProvider = ({ children }) => {
       }
     }
   }, [meetingActive, meetingStartTime, currentLead, isRecordingPaused, pausedTotalMs, pauseStartedAt]);
+
+
+  // console.log(pauseStartedAt, "pauseStartedAt")
+
 
   const value = {
     meetingActive,
