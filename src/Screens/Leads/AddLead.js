@@ -14,14 +14,17 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Picker } from '@react-native-picker/picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useFocusEffect } from '@react-navigation/native';
 import BASE_URL from '../../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureLocation } from '../../utils/LocationCapture';
 import { colors } from '../../../theme/colors';
 import axios from 'axios';
 import { getAddressFromCoords } from '../../utils/getAddressFromCoords';
+import { useMeeting } from '../../context/MeetingContext';
 
 export default function AddLead({ navigation }) {
+    const { meetingActive, currentLead } = useMeeting();
     const steps = ['Shop Information', 'Location Details', 'Business Details'];
     const [step, setStep] = useState(1);
     const [location, setLocation] = useState({ latitude: '', longitude: '' });
@@ -115,6 +118,35 @@ export default function AddLead({ navigation }) {
         getPlansData();
         getSystemData();
     }, []);
+
+    // Check for active meeting when screen comes into focus
+    useFocusEffect(
+        React.useCallback(() => {
+            if (meetingActive && currentLead) {
+                Alert.alert(
+                    'Meeting in Progress',
+                    `A meeting is currently ongoing with ${currentLead.contact_person || currentLead.shop_name || 'a lead'}. Please end the current meeting before creating a new one.`,
+                    [
+                        {
+                            text: 'Go Back',
+                            onPress: () => {
+                                navigation.goBack();
+                            },
+                            style: 'cancel'
+                        },
+                        {
+                            text: 'Go to Meeting',
+                            onPress: () => {
+                                navigation.navigate('Meeting', { lead: currentLead });
+                            },
+                            style: 'default'
+                        }
+                    ],
+                    { cancelable: false }
+                );
+            }
+        }, [meetingActive, currentLead, navigation])
+    );
 
     const onChange = (event, selectedDate) => {
         if (selectedDate) {
@@ -229,6 +261,32 @@ export default function AddLead({ navigation }) {
     };
 
     const handleSubmitandStartMeeting = async () => {
+        // Check if meeting is already active
+        if (meetingActive && currentLead) {
+            Alert.alert(
+                'Meeting in Progress',
+                `A meeting is currently ongoing with ${currentLead.contact_person || currentLead.shop_name || 'a lead'}. Please end the current meeting before starting a new one.`,
+                [
+                    {
+                        text: 'Go Back',
+                        onPress: () => {
+                            navigation.goBack();
+                        },
+                        style: 'cancel'
+                    },
+                    {
+                        text: 'Go to Meeting',
+                        onPress: () => {
+                            navigation.navigate('Meeting', { lead: currentLead });
+                        },
+                        style: 'default'
+                    }
+                ],
+                { cancelable: false }
+            );
+            return;
+        }
+
         try {
             const payload = {
                 ...formData,

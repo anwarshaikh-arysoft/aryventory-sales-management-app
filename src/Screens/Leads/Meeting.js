@@ -35,16 +35,28 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 // Memoized Timer Component
 const MeetingTimer = memo(({ startTime, isActive, isPaused, pausedTotalMs = 0, pauseStartedAt = null }) => {
+
   const [time, setTime] = useState(0);
   const timerIdRef = useRef(null);
   const startMsRef = useRef(null);
+  const isPausedRef = useRef(isPaused);
+  const pauseStartedAtRef = useRef(pauseStartedAt);
+  const pausedTotalMsRef = useRef(pausedTotalMs);
+
+  // Update refs when props change
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+    pauseStartedAtRef.current = pauseStartedAt;
+    pausedTotalMsRef.current = pausedTotalMs;
+  }, [isPaused, pauseStartedAt, pausedTotalMs]);
 
   // Format time to HH:MM:SS
   const formatTime = useCallback((seconds) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    const result = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    return result;
   }, []);
 
   // Start Timer
@@ -57,16 +69,27 @@ const MeetingTimer = memo(({ startTime, isActive, isPaused, pausedTotalMs = 0, p
     if (timerIdRef.current) clearInterval(timerIdRef.current);
 
     const tick = () => {
-      const dynamicPaused = isPaused && pauseStartedAt ? (Date.now() - pauseStartedAt) : 0;
-      const totalPausedMs = (pausedTotalMs || 0) + dynamicPaused;
-      const elapsedMs = Date.now() - startMsRef.current - totalPausedMs;
-      setTime(Math.max(0, Math.floor(elapsedMs / 1000)));
+      if (!startMsRef.current) return;
+      
+      // Use refs to get current values (avoid stale closures)
+      const currentIsPaused = isPausedRef.current;
+      const currentPauseStartedAt = pauseStartedAtRef.current;
+      const currentPausedTotalMs = pausedTotalMsRef.current;
+      
+      // Calculate elapsed time correctly
+      // When paused, use pauseStartedAt as the end time (shows time at moment of pause)
+      // When not paused, use Date.now() (current time, continues counting)
+      const endTime = currentIsPaused && currentPauseStartedAt ? currentPauseStartedAt : Date.now();
+      const totalPausedMs = currentPausedTotalMs || 0;
+      const elapsedMs = endTime - startMsRef.current - totalPausedMs;
+      const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+      setTime(elapsedSeconds);
     };
     tick(); // immediate update
     timerIdRef.current = setInterval(tick, 1000);
-  }, [isPaused, pausedTotalMs, pauseStartedAt]);
+  }, []); // No dependencies - tick uses refs for current values
 
-  // Pause Timer
+  // Pause Timer - just clear interval, time is already correct from tick
   const pauseTimer = useCallback(() => {
     if (timerIdRef.current) {
       clearInterval(timerIdRef.current);
@@ -84,15 +107,14 @@ const MeetingTimer = memo(({ startTime, isActive, isPaused, pausedTotalMs = 0, p
   // Effect to handle timer state changes
   useEffect(() => {
     if (isActive && startTime) {
-      if (isPaused) {
-        pauseTimer();
-      } else {
-        startTimer(startTime);
-      }
+      // Always restart timer to pick up latest pause state
+      // The tick function uses refs so it will have current values
+      startTimer(startTime);
     } else {
       resetTimer();
     }
-  }, [isActive, isPaused, startTime, startTimer, resetTimer, pauseTimer]);
+  }, [isActive, startTime, startTimer, resetTimer, isPaused, pauseStartedAt, pausedTotalMs]);
+
 
   // Cleanup on unmount
   useEffect(() => {
@@ -107,12 +129,12 @@ const MeetingTimer = memo(({ startTime, isActive, isPaused, pausedTotalMs = 0, p
 });
 
 // Memoized Status Selector Component
-const StatusSelector = memo(({ 
-  selectedStatus, 
-  onStatusSelect, 
-  meetingOutcomeOptions, 
-  statusModalVisible, 
-  setStatusModalVisible 
+const StatusSelector = memo(({
+  selectedStatus,
+  onStatusSelect,
+  meetingOutcomeOptions,
+  statusModalVisible,
+  setStatusModalVisible
 }) => {
   const openStatusModal = useCallback(() => setStatusModalVisible(true), [setStatusModalVisible]);
   const closeStatusModal = useCallback(() => setStatusModalVisible(false), [setStatusModalVisible]);
@@ -191,12 +213,12 @@ const StatusSelector = memo(({
 });
 
 // Memoized Plan Selector Component
-const PlanSelector = memo(({ 
-  selectedPlan, 
-  onPlanSelect, 
-  plansOptions, 
-  planModalVisible, 
-  setPlanModalVisible 
+const PlanSelector = memo(({
+  selectedPlan,
+  onPlanSelect,
+  plansOptions,
+  planModalVisible,
+  setPlanModalVisible
 }) => {
   const openPlanModal = useCallback(() => setPlanModalVisible(true), [setPlanModalVisible]);
   const closePlanModal = useCallback(() => setPlanModalVisible(false), [setPlanModalVisible]);
@@ -228,7 +250,7 @@ const PlanSelector = memo(({
             <Text style={styles.leadTitle}>Select Plan</Text>
 
             <ScrollView keyboardShouldPersistTaps="handled">
-              { plansOptions && plansOptions.map((plan) => {
+              {plansOptions && plansOptions.map((plan) => {
                 const isSelected = selectedPlan?.id === plan.id;
                 return (
                   <TouchableOpacity
@@ -275,11 +297,11 @@ const PlanSelector = memo(({
 });
 
 // Memoized Date Picker Component
-const DatePickerComponent = memo(({ 
-  nextFollowUpDate, 
-  onDateChange, 
-  showDatePicker, 
-  setShowDatePicker 
+const DatePickerComponent = memo(({
+  nextFollowUpDate,
+  onDateChange,
+  showDatePicker,
+  setShowDatePicker
 }) => {
   const defaultDate = useRef(new Date());
 
@@ -318,12 +340,12 @@ const DatePickerComponent = memo(({
 
 const MeetingTimerScreen = ({ navigation }) => {
   // Meeting Context
-  const { 
-    meetingActive, 
-    meetingStartTime, 
-    currentLead, 
-    isRecordingPaused, 
-    pausedTotalMs, 
+  const {
+    meetingActive,
+    meetingStartTime,
+    currentLead,
+    isRecordingPaused,
+    pausedTotalMs,
     pauseStartedAt,
     startMeeting,
     endMeeting,
@@ -365,14 +387,14 @@ const MeetingTimerScreen = ({ navigation }) => {
   // Battery Optimization Check (for problematic Android devices)
   const checkAndRequestBatteryOptimization = useCallback(async () => {
     if (Platform.OS !== 'android') return true;
-    
+
     // Check if we've already shown this prompt
     const hasShown = await AsyncStorage.getItem('battery_optimization_prompted');
     if (hasShown) return true;
-    
+
     try {
       const pkg = 'com.anwar.squarebiz.snackadf3a45a30e344f0acc59f65f9f82009';
-      
+
       return new Promise((resolve) => {
         Alert.alert(
           'Battery Optimization',
@@ -384,7 +406,7 @@ const MeetingTimerScreen = ({ navigation }) => {
                 try {
                   // Mark as shown
                   await AsyncStorage.setItem('battery_optimization_prompted', 'true');
-                  
+
                   // Try to open battery optimization settings
                   await IntentLauncher.startActivityAsync(
                     IntentLauncher.ActivityAction.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
@@ -430,8 +452,8 @@ const MeetingTimerScreen = ({ navigation }) => {
       AsyncStorage.getItem(draftKey).then((s) => {
         const prev = s ? JSON.parse(s) : {};
         const next = { ...prev, selectedStatus: status };
-        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
-      }).catch(() => {});
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => { });
+      }).catch(() => { });
     }
   }, [selectedLead?.id]);
 
@@ -442,8 +464,8 @@ const MeetingTimerScreen = ({ navigation }) => {
       AsyncStorage.getItem(draftKey).then((s) => {
         const prev = s ? JSON.parse(s) : {};
         const next = { ...prev, selectedPlan: plan };
-        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
-      }).catch(() => {});
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => { });
+      }).catch(() => { });
     }
   }, [selectedLead?.id]);
 
@@ -454,8 +476,8 @@ const MeetingTimerScreen = ({ navigation }) => {
       AsyncStorage.getItem(draftKey).then((s) => {
         const prev = s ? JSON.parse(s) : {};
         const next = { ...prev, nextFollowUpDate: date?.toISOString() || null };
-        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
-      }).catch(() => {});
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => { });
+      }).catch(() => { });
     }
   }, [selectedLead?.id]);
 
@@ -466,8 +488,8 @@ const MeetingTimerScreen = ({ navigation }) => {
       AsyncStorage.getItem(draftKey).then((s) => {
         const prev = s ? JSON.parse(s) : {};
         const next = { ...prev, notes: text };
-        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
-      }).catch(() => {});
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => { });
+      }).catch(() => { });
     }
   }, [selectedLead?.id]);
 
@@ -478,8 +500,8 @@ const MeetingTimerScreen = ({ navigation }) => {
       AsyncStorage.getItem(draftKey).then((s) => {
         const prev = s ? JSON.parse(s) : {};
         const next = { ...prev, contactPerson: text };
-        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
-      }).catch(() => {});
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => { });
+      }).catch(() => { });
     }
   }, [selectedLead?.id]);
 
@@ -490,8 +512,8 @@ const MeetingTimerScreen = ({ navigation }) => {
       AsyncStorage.getItem(draftKey).then((s) => {
         const prev = s ? JSON.parse(s) : {};
         const next = { ...prev, mobileNumber: text };
-        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => {});
-      }).catch(() => {});
+        AsyncStorage.setItem(draftKey, JSON.stringify(next)).catch(() => { });
+      }).catch(() => { });
     }
   }, [selectedLead?.id]);
 
@@ -585,7 +607,7 @@ const MeetingTimerScreen = ({ navigation }) => {
         if (endpoint === '/meetings/start') {
           // Check battery optimization on first meeting start
           await checkAndRequestBatteryOptimization();
-          
+
           try {
             await startMeetingRecording();
             // Keep device awake during recording
@@ -651,24 +673,24 @@ const MeetingTimerScreen = ({ navigation }) => {
 
           // if selectedPlan then add it to the form else add empty string
           if (selectedPlan) formData.append('plan_interest', selectedPlan.name); else formData.append('plan_interest', '');
-          
+
           // if recordingUri then add it to the form else add empty string
           if (recordingUri) formData.append('recording', { uri: recordingUri, type: 'audio/m4a', name: 'meeting.m4a' });
-          
+
           // if notes then add it to the form else add empty string
-          if (notes) {formData.append('notes', notes)} else {formData.append('notes', '')}
-          
+          if (notes) { formData.append('notes', notes) } else { formData.append('notes', '') }
+
           // if contactPerson then add it to the form else add empty string
-          if (contactPerson) {formData.append('contact_person', contactPerson)} else {formData.append('contact_person', '')}
-          
+          if (contactPerson) { formData.append('contact_person', contactPerson) } else { formData.append('contact_person', '') }
+
           // if mobileNumber then add it to the form else add empty string
-          if (mobileNumber) {formData.append('mobile_number', mobileNumber)} else {formData.append('mobile_number', '')}
+          if (mobileNumber) { formData.append('mobile_number', mobileNumber) } else { formData.append('mobile_number', '') }
 
           // Clear persisted draft on successful end
-          try { await AsyncStorage.removeItem(`meeting_draft_${selectedLead.id}`); } catch {}
-          
+          try { await AsyncStorage.removeItem(`meeting_draft_${selectedLead.id}`); } catch { }
+
           // Update context state          
-          updateMeetingState({            
+          updateMeetingState({
             pausedTotalMs: 0,
             pauseStartedAt: null,
             isRecordingPaused: false,
@@ -690,13 +712,13 @@ const MeetingTimerScreen = ({ navigation }) => {
         const sendMeetingActionEndTime = Date.now();
         console.log('Time taken to send meeting action:', (sendMeetingActionEndTime - sendMeetingActionStartTime) / 1000, 'seconds');
 
-        if (res.status === 200) {          
-          fetchMeetingStatus();                  
+        if (res.status === 200) {
+          fetchMeetingStatus();
         }
-        
+
         // Update context based on action
         if (endpoint === '/meetings/start') {
-          startMeeting(selectedLead, new Date().toISOString());          
+          startMeeting(selectedLead, new Date().toISOString());
         } else if (endpoint === '/meetings/end') {
           endMeeting();
           navigation.navigate('Home');
@@ -717,19 +739,18 @@ const MeetingTimerScreen = ({ navigation }) => {
 
   // Fetch meeting status
   const fetchMeetingStatus = useCallback(async () => {
-    console.log('Fetching meeting status...');
+    // console.log('Fetching meeting status...');
     // Track time taken to fetch meeting status
     const startTime = Date.now();
 
     setLoadingAction(true);
-    try {      
+    try {
       const lead_id = currentLead?.id;
-      console.log('Lead ID:', lead_id);
       const token = await AsyncStorage.getItem('token');
 
       const res = await axios.post(
         `${BASE_URL}/meetings/check/status`,
-        { lead_id },        
+        { lead_id },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -776,18 +797,22 @@ const MeetingTimerScreen = ({ navigation }) => {
 
     // Track time taken to fetch meeting status in seconds 
     const endTime = Date.now();
-    console.log('Time taken to fetch meeting status:', (endTime - startTime) / 1000, 'seconds');
-  }, [currentLead?.id, updateMeetingState]);
+    // console.log('Time taken to fetch meeting status:', (endTime - startTime) / 1000, 'seconds');
+  }, [currentLead?.id]);
 
   const onPauseRecording = useCallback(async () => {
     const res = await pauseMeetingRecording();
-    if (res?.paused !== undefined) {
-      // mark paused state and start accumulating paused duration
+    console.log('pauseMeetingRecording result:', res);
+
+    // If recording instance is not available (e.g. app was killed and restarted),
+    // treat this as a logical pause for the meeting UI so timer can pause normally.
+    if (res?.reason === 'no-instance') {
+      const pauseAt = Date.now();
       updateMeetingState({
-        isRecordingPaused: !!res.paused,
-        pauseStartedAt: Date.now(),
+        isRecordingPaused: true,
+        pauseStartedAt: pauseAt,
       });
-      // persist draft state
+
       if (selectedLead?.id) {
         const draft = {
           selectedStatus,
@@ -798,9 +823,37 @@ const MeetingTimerScreen = ({ navigation }) => {
           nextFollowUpDate: nextFollowUpDate ? nextFollowUpDate.toISOString() : null,
           isRecordingPaused: true,
           pausedTotalMs,
-          pauseStartedAt: Date.now(),
+          pauseStartedAt: pauseAt,
         };
-        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch {}
+        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch { }
+      }
+      return;
+    }
+
+    if (res?.paused !== undefined) {
+      const paused = !!res.paused;
+      const pauseAt = paused ? Date.now() : null;
+
+      // mark paused state and start accumulating paused duration
+      updateMeetingState({
+        isRecordingPaused: paused,
+        pauseStartedAt: pauseAt,
+      });
+
+      // persist draft state
+      if (selectedLead?.id) {
+        const draft = {
+          selectedStatus,
+          selectedPlan,
+          notes,
+          contactPerson,
+          mobileNumber,
+          nextFollowUpDate: nextFollowUpDate ? nextFollowUpDate.toISOString() : null,
+          isRecordingPaused: paused,
+          pausedTotalMs,
+          pauseStartedAt: pauseAt,
+        };
+        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch { }
       }
     }
   }, [selectedLead?.id, selectedStatus, selectedPlan, notes, contactPerson, mobileNumber, nextFollowUpDate, pausedTotalMs, updateMeetingState]);
@@ -810,13 +863,13 @@ const MeetingTimerScreen = ({ navigation }) => {
     if (res?.resumed !== undefined) {
       // add the last pause segment to total and clear start
       const newPausedTotalMs = pauseStartedAt ? pausedTotalMs + (Date.now() - pauseStartedAt) : pausedTotalMs;
-      
+
       updateMeetingState({
         pausedTotalMs: newPausedTotalMs,
         pauseStartedAt: null,
         isRecordingPaused: !res.resumed ? true : false,
       });
-      
+
       // persist draft state
       if (selectedLead?.id) {
         const draft = {
@@ -830,7 +883,7 @@ const MeetingTimerScreen = ({ navigation }) => {
           pausedTotalMs: newPausedTotalMs,
           pauseStartedAt: null,
         };
-        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch {}
+        try { await AsyncStorage.setItem(`meeting_draft_${selectedLead.id}`, JSON.stringify(draft)); } catch { }
       }
     }
   }, [selectedLead?.id, selectedStatus, selectedPlan, notes, contactPerson, mobileNumber, nextFollowUpDate, pausedTotalMs, pauseStartedAt, updateMeetingState]);
@@ -857,11 +910,9 @@ const MeetingTimerScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (currentLead) {
-      // Only fetch meeting status if we don't already have meeting data
-      // if (!meetingActive) {
-      //   fetchMeetingStatus();
-      // }
+      // Always sync with backend once when we have a current lead
       fetchMeetingStatus();
+
       // restore draft per lead
       const draftKey = `meeting_draft_${currentLead.id}`;
       AsyncStorage.getItem(draftKey).then((s) => {
@@ -883,10 +934,10 @@ const MeetingTimerScreen = ({ navigation }) => {
           if (draft.pauseStartedAt) {
             updateMeetingState({ pauseStartedAt: draft.pauseStartedAt });
           }
-        } catch {}
-      }).catch(() => {});
+        } catch { }
+      }).catch(() => { });
     }
-  }, [currentLead?.id, fetchMeetingStatus, updateMeetingState, meetingActive]);
+  }, [currentLead?.id, fetchMeetingStatus]);
 
   // Also restore draft on screen focus (covers cases where component isn't unmounted)
   useFocusEffect(
@@ -913,8 +964,8 @@ const MeetingTimerScreen = ({ navigation }) => {
           if (draft.pauseStartedAt) {
             updateMeetingState({ pauseStartedAt: draft.pauseStartedAt });
           }
-        } catch {}
-      }).catch(() => {});
+        } catch { }
+      }).catch(() => { });
       return () => { cancelled = true; };
     }, [currentLead?.id, updateMeetingState])
   );
@@ -930,7 +981,7 @@ const MeetingTimerScreen = ({ navigation }) => {
   useEffect(() => {
     const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data;
-      
+
       // If it's a recording notification tap, just ensure we're on the Meeting screen
       if (data?.type === 'recording' && data?.action === 'open_app') {
         // The app is already being brought to foreground by default
@@ -955,20 +1006,20 @@ const MeetingTimerScreen = ({ navigation }) => {
   const leadSelector = useMemo(() => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Select Meeting</Text>
-      <TouchableOpacity 
-        style={[styles.dropdown, meetingActive && styles.dropdownDisabled]} 
+      <TouchableOpacity
+        style={[styles.dropdown, meetingActive && styles.dropdownDisabled]}
         onPress={() => {
           if (!meetingActive) {
             setModalVisible(true);
           }
         }}
         disabled={meetingActive}
-      >        
+      >
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           {selectedLead ? (
             <>
               <Text style={[styles.dropdownText, meetingActive && styles.dropdownTextDisabled]}>
-                {selectedLead.contact_person} 
+                {selectedLead.contact_person}
               </Text>
               <ArrowRight size={18} color={meetingActive ? "#999" : "#666"} />
               <Text style={[styles.dropdownText, meetingActive && styles.dropdownTextDisabled]}>
@@ -982,12 +1033,12 @@ const MeetingTimerScreen = ({ navigation }) => {
           )}
         </View>
         <Ionicons name="chevron-down" size={20} color={meetingActive ? "#999" : "#666"} />
-      </TouchableOpacity>      
+      </TouchableOpacity>
     </View>
   ), [selectedLead, meetingActive]);
 
   const meetingInfo = useMemo(() => {
-    
+
     return (
       <View style={styles.meetingInfo}>
         <View style={styles.meetingHeader}>
@@ -1004,7 +1055,7 @@ const MeetingTimerScreen = ({ navigation }) => {
             ) : (
               <TouchableOpacity style={styles.recordButton} onPress={onPauseRecording}>
                 <MaterialIcons name="pause" size={16} color="#ff9500" />
-                <Text style={styles.recordText}>Pause</Text>        
+                <Text style={styles.recordText}>Pause</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -1012,6 +1063,10 @@ const MeetingTimerScreen = ({ navigation }) => {
       </View>
     )
   }, [currentLead?.contact_person, currentLead?.shop_name, isRecordingPaused, onPauseRecording, onResumeRecording]);
+
+  useEffect(() => {
+    console.log('loadingAction', loadingAction);
+  }, [loadingAction])
 
   return (
     <SafeAreaView style={styles.container}>
@@ -1031,17 +1086,17 @@ const MeetingTimerScreen = ({ navigation }) => {
             {selectedLead?.id ? (
               <View style={styles.meetingControls}>
                 {loadingAction ? (
-                  <TouchableOpacity style={[styles.meetingControlButton, styles.loadingButton]}>                  
+                  <TouchableOpacity style={[styles.meetingControlButton, styles.loadingButton]}>
                     <Text style={styles.meetingControlButtonText}>Loading...</Text>
                     <MaterialIcons name="hourglass-empty" size={24} color="#fff" />
                   </TouchableOpacity>
-                ) : loadingAction === false && meetingActive ? (
+                ) : meetingActive ? (
                   <View style={{ flex: 1 }}>
                     {meetingInfo}
-                    
+
                     {/* Timer Component - Isolated to prevent re-renders */}
-                    <MeetingTimer 
-                      startTime={meetingStartTime} 
+                    <MeetingTimer
+                      startTime={meetingStartTime}
                       isActive={meetingActive}
                       isPaused={isRecordingPaused}
                       pausedTotalMs={pausedTotalMs}

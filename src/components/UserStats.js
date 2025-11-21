@@ -1,12 +1,12 @@
 // components/userStats.js
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import { View, Button, Text, StyleSheet, TouchableOpacity } from "react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { MaterialIcons } from '@expo/vector-icons';
 import axios from 'axios';
 import BASE_URL from '../config';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 
 
 export default function UserStats({ bgColor }) {
@@ -37,12 +37,14 @@ export default function UserStats({ bgColor }) {
         } catch (err) {
             console.error('Error fetching stats:', err);
         }
-    };
+    }; 
 
-    // Fetch stats on component mount
-    useEffect(() => {
-        fetchStats();
-    }, []);
+    
+    useFocusEffect(
+        React.useCallback(() => {
+            fetchStats();
+        }, [])
+    );
 
     // Navigation handler - same logic as HomeScreen
     function handleNavigation(title) {

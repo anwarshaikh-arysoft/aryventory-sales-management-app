@@ -96,12 +96,37 @@ async function ensureReady() {
 }
 
 /**
+ * Dismiss the recording notification (Android)
+ */
+export async function dismissRecordingNotification() {
+    if (Platform.OS !== 'android') return;
+    
+    try {
+        // Try to dismiss by identifier first (more reliable)
+        await Notifications.dismissNotificationAsync('meeting-recording');
+        
+        // Also try by notification ID if we have it
+        if (notificationId) {
+            await Notifications.dismissNotificationAsync(notificationId);
+        }
+        
+        notificationId = null;
+    } catch (error) {
+        console.warn('Failed to dismiss notification:', error);
+    }
+}
+
+/**
  * Show persistent notification to keep recording active (Android)
+ * Only shows if there's an active meeting
  */
 async function showRecordingNotification() {
     if (Platform.OS !== 'android') return;
     
     try {
+        // Dismiss any existing notification first to avoid duplicates
+        await dismissRecordingNotification();
+        
         notificationId = await Notifications.scheduleNotificationAsync({
             content: {
                 title: 'Meeting in progress',
@@ -120,27 +145,6 @@ async function showRecordingNotification() {
         });
     } catch (error) {
         console.warn('Failed to show notification:', error);
-    }
-}
-
-/**
- * Dismiss the recording notification (Android)
- */
-async function dismissRecordingNotification() {
-    if (Platform.OS !== 'android') return;
-    
-    try {
-        // Try to dismiss by identifier first (more reliable)
-        await Notifications.dismissNotificationAsync('meeting-recording');
-        
-        // Also try by notification ID if we have it
-        if (notificationId) {
-            await Notifications.dismissNotificationAsync(notificationId);
-        }
-        
-        notificationId = null;
-    } catch (error) {
-        console.warn('Failed to dismiss notification:', error);
     }
 }
 
